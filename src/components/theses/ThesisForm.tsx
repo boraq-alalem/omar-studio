@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -17,9 +16,11 @@ import { arSA } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import type { Thesis, Degree, UniversityWithSpecializationsAdmin, Specialization as SpecializationType } from "@/types/api";
-import { addThesis, updateThesis, getUniversitiesWithSpecializationsAdmin, getDegrees } from "@/lib/api";
+import { addThesis, updateThesis, getUniversitiesWithSpecializationsAdmin, getDegrees, addThesisBoth, updateThesisBoth } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Combobox } from "@/components/ui/combobox"; // Added Combobox import
+import { useThesisFromBothApis } from "@/hooks/use-thesis-both";
+import { extractFirstNPagesFromPdf } from "@/lib/pdfUtils";
 
 const thesisFormSchema = z.object({
   title: z.string().min(5, { message: "العنوان يجب أن يكون 5 أحرف على الأقل." }),
@@ -131,28 +132,45 @@ export function ThesisForm({ initialData }: ThesisFormProps) {
 
   async function onSubmit(data: ThesisFormValues) {
     setIsSubmitting(true);
-    const formData = new FormData();
-    formData.append("title", data.title);
-    formData.append("year", format(data.year, "yyyy"));
-    formData.append("university_id", data.university_id);
-    formData.append("specialization_id", data.specialization_id);
-    formData.append("degree_id", data.degree_id);
-    formData.append("author_name", data.author_name);
-    if (data.pdf) {
-      formData.append("pdf", data.pdf);
-    }
+    // تجهيز بيانات النموذج
+    const baseFields = {
+      title: data.title,
+      year: format(data.year, "yyyy"),
+      university_id: data.university_id,
+      specialization_id: data.specialization_id,
+      degree_id: data.degree_id,
+      author_name: data.author_name,
+    };
 
     try {
       if (initialData) {
-        await updateThesis(initialData.id, formData);
+        let pdfLocal = data.pdf || undefined;
+        let pdfRemote = undefined;
+        if (data.pdf) {
+          pdfLocal = data.pdf;
+          const firstNPagesBlob = await extractFirstNPagesFromPdf(data.pdf, 30);
+          pdfRemote = new File([firstNPagesBlob], data.pdf.name, { type: 'application/pdf' });
+        }
+        await updateThesisBoth(initialData.id, {
+          ...baseFields,
+          pdf: pdfLocal,
+          pdfRemote: pdfRemote,
+        });
         toast({ title: "نجاح", description: "تم تعديل الرسالة بنجاح." });
       } else {
-        if (!data.pdf) {
-          form.setError("pdf", { type: "manual", message: "ملف PDF مطلوب عند إضافة رسالة جديدة." });
-          setIsSubmitting(false);
-          return;
+        // إضافة: الملف الأصلي للمحلي، وأول 30 صفحة فقط للاستضافة
+        let pdfLocal = data.pdf || undefined;
+        let pdfRemote = undefined;
+        if (data.pdf) {
+          pdfLocal = data.pdf;
+          const firstNPagesBlob = await extractFirstNPagesFromPdf(data.pdf, 30);
+          pdfRemote = new File([firstNPagesBlob], data.pdf.name, { type: 'application/pdf' });
         }
-        await addThesis(formData);
+        await addThesisBoth({
+          ...baseFields,
+          pdf: pdfLocal,
+          pdfRemote: pdfRemote,
+        });
         toast({ title: "نجاح", description: "تمت إضافة الرسالة بنجاح." });
       }
       router.push("/theses");
@@ -172,6 +190,10 @@ export function ThesisForm({ initialData }: ThesisFormProps) {
   const specializationOptions = availableSpecializations.map(spec => ({ value: spec.id.toString(), label: spec.name }));
   const degreeOptions = degrees.map(deg => ({ value: deg.id.toString(), label: deg.name }));
 
+
+  // جلب بيانات الرسالة من كلا الجهتين (الاستضافة والمحلي)
+  const thesisId = initialData?.id;
+  const { main, local } = useThesisFromBothApis(thesisId);
 
   return (
     <Card className="max-w-2xl mx-auto shadow-xl">
@@ -324,7 +346,16 @@ export function ThesisForm({ initialData }: ThesisFormProps) {
                     />
                   </FormControl>
                   <FormDescription>
-                    {initialData && initialData.pdf_path ? `الملف الحالي: ${initialData.pdf_path.split('/').pop()}` : "الرجاء تحميل ملف PDF الخاص بالرسالة."}
+                    {main && main.pdf_path && local && local.pdf_path ? (
+    <>
+      <div>ملف الاستضافة: {main.pdf_path.split('/').pop()}</div>
+      <div>ملف المحلي: {local.pdf_path.split('/').pop()}</div>
+    </>
+  ) : initialData && initialData.pdf_path ? (
+    `الملف الحالي: ${initialData.pdf_path.split('/').pop()}`
+  ) : (
+    "الرجاء تحميل ملف PDF الخاص بالرسالة."
+  )}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

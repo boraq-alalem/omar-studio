@@ -143,8 +143,7 @@ export const searchThesesGuests = (params: { title: string; author?: string; deg
 export const addThesis = (formData: FormData) => fetchApi<AddThesisResponse>('/theses/', { method: 'POST', body: formData });
 
 export const updateThesis = (id: number, formData: FormData) => {
-  formData.append('_method', 'PUT');
-  return fetchApi<UpdateThesisResponse>(`/theses/${id}`, { method: 'POST', body: formData });
+  return fetchApi<UpdateThesisResponse>(`/theses/${id}`, { method: 'PUT', body: formData });
 };
 
 export const archiveThesis = (id: number) => fetchApi<ArchiveThesisResponse>(`/theses/${id}`, { method: 'DELETE' });
@@ -253,8 +252,26 @@ async function addThesisBoth(data: any): Promise<AddThesisResponse> {
 
   // حفظ الربط في كلا الموقعين
   try {
-    const resLocal = await fetch(`${INTERNAL_API_BASE_URL}/uuids?id_remote=${id_remote}&id_local=${id_local}`, { method: 'POST', body: null });
-    const resRemote = await fetch(`${API_BASE_URL}/uuids?id_remote=${id_remote}&id_local=${id_local}`, { method: 'POST', body: null });
+    const resLocal = await fetch(`${INTERNAL_API_BASE_URL}/uuids/store`, { 
+      method: 'POST', 
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ id_remote, id_local })
+    });
+    const resRemote = await fetch(`${API_BASE_URL}/uuids/store`, { 
+      method: 'POST', 
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ id_remote, id_local })
+    });
+    
+    if (!resLocal.ok || !resRemote.ok) {
+      console.error('أحد طلبات حفظ الربط فشل:', 
+        !resLocal.ok ? `المحلي: ${resLocal.status}` : '', 
+        !resRemote.ok ? `الاستضافة: ${resRemote.status}` : '');
+    }
   } catch (e) {
     console.error('خطأ في حفظ الربط في جدول uuid:', e);
   }
@@ -286,19 +303,18 @@ export async function updateThesisBoth(id_local: number, data: any) {
       formDataRemote.append(key, value);
     }
   });
-  formDataLocal.append('_method', 'PUT');
-  formDataRemote.append('_method', 'PUT');
+  // Removed _method parameter as we're using PUT directly
 
   // 3. إرسال التعديل للمحلي
   const localRes = await fetch(`${INTERNAL_API_BASE_URL}/theses/${id_local}`, {
-    method: 'POST',
+    method: 'PUT',
     body: formDataLocal,
   });
   if (!localRes.ok) throw new Error('فشل تعديل الرسالة في المحلي');
 
   // 4. إرسال التعديل للاستضافة
   const remoteRes = await fetch(`${API_BASE_URL}/theses/${id_remote}`, {
-    method: 'POST',
+    method: 'PUT',
     body: formDataRemote,
   });
   if (!remoteRes.ok) throw new Error('فشل تعديل الرسالة في الاستضافة');

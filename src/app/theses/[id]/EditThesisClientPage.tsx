@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -7,6 +6,7 @@ import type { Thesis, Degree } from '@/types/api';
 import { Skeleton } from '@/components/ui/skeleton'; 
 import { AlertTriangle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { getRemoteIdByLocalId } from '@/lib/api';
 
 
 interface EditThesisClientPageProps {
@@ -23,6 +23,7 @@ export function EditThesisClientPage({
   const [thesis, setThesis] = useState<Thesis | undefined>(initialThesisData);
   const [isLoading, setIsLoading] = useState(!initialThesisData); 
   const [error, setError] = useState<string | null>(null);
+  const [idRemote, setIdRemote] = useState<string | null>(null);
 
   useEffect(() => {
     if (!initialThesisData) {
@@ -36,6 +37,32 @@ export function EditThesisClientPage({
       setIsLoading(false); // Ensure loading is false if data is present
     }
   }, [thesisId, initialThesisData]);
+
+  useEffect(() => {
+    let id = thesis?.id;
+    if (typeof window !== 'undefined') {
+      // @ts-ignore
+      const nav = window.history.state && window.history.state.usr;
+      if (nav && nav.id_remote) {
+        setIdRemote(nav.id_remote);
+        return;
+      }
+    }
+    // إذا لم يتم تمرير id_remote من state، جلبه من API
+    if (id) {
+      getRemoteIdByLocalId(id).then(setIdRemote);
+    }
+  }, [thesis]);
+
+  // استخراج المعرفات من state إذا كانت متوفرة
+  let idLocal: number | undefined = thesis?.id;
+  if (typeof window !== 'undefined') {
+    // @ts-ignore
+    const nav = window.history.state && window.history.state.usr;
+    if (nav) {
+      if (nav.id_local) idLocal = nav.id_local;
+    }
+  }
 
   if (isLoading) {
     return (
@@ -78,9 +105,16 @@ export function EditThesisClientPage({
   }
 
   return (
-    <ThesisForm
-      initialData={thesis}
-      degrees={degrees}
-    />
+    <>
+      <div className="mb-4 text-sm text-muted-foreground">
+        <span>المعرف المحلي: <b>{thesis?.id ?? '-'}</b></span>
+        {' '}||{' '}
+        <span>المعرف الخارجي: <b>{idRemote ?? '-'}</b></span>
+      </div>
+      <ThesisForm
+        initialData={thesis}
+        degrees={degrees}
+      />
+    </>
   );
 }

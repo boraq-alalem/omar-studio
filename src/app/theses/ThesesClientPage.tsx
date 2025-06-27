@@ -238,7 +238,7 @@ export function ThesesClientPage({ initialTheses, universities, specializations,
                     <Link 
                       href={{ pathname: `/theses/${thesis.id}/edit`, query: {} }}
                       // @ts-ignore
-                      state={{ thesis }}
+                      state={{ thesis, id_local: thesis.id, id_remote: remoteIds[thesis.id] || null }}
                       aria-label="Edit Thesis"
                     >
                       <Edit className="h-4 w-4 text-yellow-500" />

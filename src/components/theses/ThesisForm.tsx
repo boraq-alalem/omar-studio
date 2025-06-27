@@ -34,16 +34,17 @@ type ThesisFormValues = z.infer<typeof thesisFormSchema>;
 
 interface ThesisFormProps {
   initialData?: Thesis & { author_name?: string };
+  degrees?: Degree[]; // اجعلها اختيارية
 }
 
-export function ThesisForm({ initialData }: ThesisFormProps) {
+export function ThesisForm({ initialData, degrees }: ThesisFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   
   const [universitiesWithSpecs, setUniversitiesWithSpecs] = useState<UniversityWithSpecializationsAdmin[]>([]);
   const [availableSpecializations, setAvailableSpecializations] = useState<SpecializationType[]>([]);
-  const [degrees, setDegrees] = useState<Degree[]>([]);
+  const [degreesState, setDegrees] = useState<Degree[]>(degrees || []);
   const [isLoadingDropdowns, setIsLoadingDropdowns] = useState(true);
 
   const defaultValues = initialData
@@ -69,16 +70,23 @@ export function ThesisForm({ initialData }: ThesisFormProps) {
     defaultValues,
   });
 
+  // إذا تم تمرير الدرجات من الأعلى استخدمها، وإلا جلبها من API
   useEffect(() => {
     async function fetchData() {
       setIsLoadingDropdowns(true);
       try {
-        const [univs, fetchedDegrees] = await Promise.all([
-          getUniversitiesWithSpecializationsAdmin(),
-          getDegrees()
-        ]);
+        let fetchedDegrees = degrees;
+        let univs;
+        if (!degrees) {
+          [univs, fetchedDegrees] = await Promise.all([
+            getUniversitiesWithSpecializationsAdmin(),
+            getDegrees()
+          ]);
+        } else {
+          univs = await getUniversitiesWithSpecializationsAdmin();
+        }
         setUniversitiesWithSpecs(univs);
-        setDegrees(fetchedDegrees);
+        setDegrees(fetchedDegrees || []);
 
         if (initialData) {
            form.reset({
@@ -98,7 +106,7 @@ export function ThesisForm({ initialData }: ThesisFormProps) {
     }
     fetchData();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialData]); 
+  }, [initialData, degrees]); 
 
   const watchedUniversityId = form.watch('university_id');
 
@@ -179,7 +187,7 @@ export function ThesisForm({ initialData }: ThesisFormProps) {
 
   const universityOptions = universitiesWithSpecs.map(uni => ({ value: uni.id.toString(), label: uni.name }));
   const specializationOptions = availableSpecializations.map(spec => ({ value: spec.id.toString(), label: spec.name }));
-  const degreeOptions = degrees.map(deg => ({ value: deg.id.toString(), label: deg.name }));
+  const degreeOptions = degreesState.map(deg => ({ value: deg.id.toString(), label: deg.name }));
 
 
   return (

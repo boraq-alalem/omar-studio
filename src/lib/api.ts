@@ -1,4 +1,3 @@
-
 import type {
   GeneralStats,
   Thesis,
@@ -44,15 +43,20 @@ async function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise
   const response = await fetch(url, { ...defaultOptions, ...options });
 
   if (!response.ok) {
-    let errorData: ApiError;
-    try {
-      errorData = await response.json();
-    } catch (e) {
-      errorData = { message: `HTTP error! status: ${response.status}` };
+      let errorData;
+      try {
+        errorData = await response.json();
+      } catch {
+        errorData = undefined;
+      }
+      console.error(
+        'API Error:',
+        errorData && Object.keys(errorData).length > 0
+          ? errorData
+          : `No error details. Status: ${response.status}, URL: ${response.url}`
+      );
+      throw errorData || { message: `HTTP error! status: ${response.status}` };
     }
-    console.error('API Error:', errorData);
-    throw errorData;
-  }
   // For 204 No Content
   if (response.status === 204) {
     return undefined as T;

@@ -184,33 +184,46 @@ export function ThesesClientPage({ initialTheses, universities, specializations,
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>العنوان</TableHead>
-              <TableHead>المؤلف</TableHead>
-              <TableHead>الجامعة</TableHead>
-              <TableHead>التخصص</TableHead>
-              <TableHead>الدرجة</TableHead>
-              <TableHead>السنة</TableHead>
-              <TableHead>الإجراءات</TableHead>
+              <TableHead className="border border-gray-200">المعرف</TableHead>
+              <TableHead className="border border-gray-200" style={{ padding: 0, width: '1px' }}>
+                <div style={{ borderLeft: '2px solid #e5e7eb', height: '100%', minHeight: '32px' }} />
+              </TableHead>
+              <TableHead className="border border-gray-200">العنوان</TableHead>
+              <TableHead className="border border-gray-200">المؤلف</TableHead>
+              <TableHead className="border border-gray-200">الجامعة</TableHead>
+              <TableHead className="border border-gray-200">التخصص</TableHead>
+              <TableHead className="border border-gray-200">الدرجة</TableHead>
+              <TableHead className="border border-gray-200">السنة</TableHead>
+              <TableHead className="border border-gray-200">الإجراءات</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {theses.map((thesis) => (
               <TableRow key={thesis.id}>
-                <TableCell className="font-medium">{thesis.title}</TableCell>
-                <TableCell>{thesis.author.name}</TableCell>
-                <TableCell>{thesis.university.name}</TableCell>
-                <TableCell>{thesis.specialization.name}</TableCell>
-                <TableCell>{thesis.degree.name}</TableCell>
-                <TableCell>{thesis.year}</TableCell>
-                <TableCell className="space-x-1 whitespace-nowrap">
+                <TableCell className="border border-gray-200 font-mono text-xs text-muted-foreground">{thesis.id}</TableCell>
+                <TableCell className="border border-gray-200" style={{ padding: 0, width: '1px' }}>
+                  <div style={{ borderLeft: '2px solid #e5e7eb', height: '100%', minHeight: '32px' }} />
+                </TableCell>
+                <TableCell className="border border-gray-200 font-medium">{thesis.title}</TableCell>
+                <TableCell className="border border-gray-200">{thesis.author.name}</TableCell>
+                <TableCell className="border border-gray-200">{thesis.university.name}</TableCell>
+                <TableCell className="border border-gray-200">{thesis.specialization.name}</TableCell>
+                <TableCell className="border border-gray-200">{thesis.degree.name}</TableCell>
+                <TableCell className="border border-gray-200">{thesis.year}</TableCell>
+                <TableCell className="border border-gray-200 space-x-1 whitespace-nowrap">
                   <Button variant="ghost" size="icon" asChild>
                     <a href={`${thesis.pdf_path}`} target="_blank" rel="noopener noreferrer" aria-label="Download PDF">
                       <Download className="h-4 w-4 text-blue-500" />
                     </a>
                   </Button>
                   <Button variant="ghost" size="icon" asChild>
-                    <Link href={`/theses/${thesis.id}/edit`} aria-label="Edit Thesis">
-                       <Edit className="h-4 w-4 text-yellow-500" />
+                    <Link 
+                      href={{ pathname: `/theses/${thesis.id}/edit`, query: {} }}
+                      // @ts-ignore
+                      state={{ thesis }}
+                      aria-label="Edit Thesis"
+                    >
+                      <Edit className="h-4 w-4 text-yellow-500" />
                     </Link>
                   </Button>
                   <AlertDialog>

@@ -22,11 +22,12 @@ import type {
   DeleteReservedTitleResponse,
   ApiError
 } from '@/types/api';
-
-const API_BASE_URL = 'https://alalem.c-library.org/api';
+import { EXTERNAL_LINKS } from './endpoints';
+import { useServerError } from '@/contexts/ServerErrorContext';
+import { toast } from '@/hooks/use-toast';
 
 async function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const url = `${API_BASE_URL}${endpoint}`;
+  const url = `${EXTERNAL_LINKS.API_BASE_URL_PROD}${endpoint}`;
   const defaultOptions: RequestInit = {
     headers: {
       'Accept': 'application/json',
@@ -64,42 +65,80 @@ async function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise
   return response.json();
 }
 
+async function fetchApiBoth<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const { setError } = require('@/contexts/ServerErrorContext');
+  const urls = [
+    EXTERNAL_LINKS.API_BASE_URL_LOCAL,
+    EXTERNAL_LINKS.API_BASE_URL_PROD
+  ];
+  const defaultOptions: RequestInit = {
+    headers: {
+      'Accept': 'application/json',
+    },
+  };
+  const fetches = urls.map(base => fetch(`${base.replace(/\/$/, '')}${endpoint}`, { ...defaultOptions, ...options }));
+  const results = await Promise.allSettled(fetches);
+  let allFailed = true;
+  for (const result of results) {
+    if (result.status === 'fulfilled' && result.value.ok) {
+      allFailed = false;
+      if (result.value.status === 204) return undefined as T;
+      return result.value.json();
+    }
+  }
+  if (allFailed) {
+    if (typeof window !== 'undefined') {
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('server-error', { detail: 'فشل بالاتصال بالخادم المحلي أو الاستضافة' }));
+      }, 0);
+    }
+    throw new Error('Both API requests failed');
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('server-error', (e: any) => {
+    const { setError } = require('@/contexts/ServerErrorContext');
+    setError(e.detail || 'فشل بالاتصال بالخادم المحلي');
+  });
+}
+
 // 1. General Statistics
-export const getGeneralStats = () => fetchApi<GeneralStats>('/stats');
+export const getGeneralStats = () => fetchApiBoth<GeneralStats>('/stats');
 
 // 2. Theses
-export const getLatestTheses = () => fetchApi<Thesis[]>('/theses/latest');
+export const getLatestTheses = () => fetchApiBoth<Thesis[]>('/theses/latest');
 
 export const searchTheses = (params: { title: string; author?: string; degree_id?: string; specialization_id?: string; university_id?: string; year?: string }) => {
   const queryParams = new URLSearchParams(params as any).toString();
-  return fetchApi<Thesis[]>(`/theses/search?${queryParams}`);
+  return fetchApiBoth<Thesis[]>(`/theses/search?${queryParams}`);
 };
 
 export const searchThesesGuests = (params: { title: string; author?: string; degree_id?: string; specialization_id?: string; university_id?: string; year?: string }) => {
   const queryParams = new URLSearchParams(params as any).toString();
-  return fetchApi<ThesisGuest[]>(`/theses/search-guests?${queryParams}`);
+  return fetchApiBoth<ThesisGuest[]>(`/theses/search-guests?${queryParams}`);
 };
 
-export const addThesis = (formData: FormData) => fetchApi<AddThesisResponse>('/theses/', { method: 'POST', body: formData });
+export const addThesis = (formData: FormData) => fetchApiBoth<AddThesisResponse>('/theses/', { method: 'POST', body: formData });
 
 export const updateThesis = (id: number, formData: FormData) => {
   formData.append('_method', 'PUT');
-  return fetchApi<UpdateThesisResponse>(`/theses/${id}`, { method: 'POST', body: formData });
+  return fetchApiBoth<UpdateThesisResponse>(`/theses/${id}`, { method: 'POST', body: formData });
 };
 
-export const archiveThesis = (id: number) => fetchApi<ArchiveThesisResponse>(`/theses/${id}`, { method: 'DELETE' });
+export const archiveThesis = (id: number) => fetchApiBoth<ArchiveThesisResponse>(`/theses/${id}`, { method: 'DELETE' });
 
-export const getThesisYears = () => fetchApi<ThesisYear[]>('/theses/years');
+export const getThesisYears = () => fetchApiBoth<ThesisYear[]>('/theses/years');
 
 // 3. Filters (Dropdowns)
-export const getSpecializations = () => fetchApi<Specialization[]>('/specializations');
-export const getUniversities = () => fetchApi<University[]>('/universities');
-export const getDegrees = () => fetchApi<Degree[]>('/degrees');
+export const getSpecializations = () => fetchApiBoth<Specialization[]>('/specializations');
+export const getUniversities = () => fetchApiBoth<University[]>('/universities');
+export const getDegrees = () => fetchApiBoth<Degree[]>('/degrees');
 
 // 4. Universities and Specializations
-export const getUniversitiesWithSpecializationsAdmin = () => fetchApi<UniversityWithSpecializationsAdmin[]>('/universities-with-specializations');
-export const getUniversitiesWithSpecializationsGuests = () => fetchApi<UniversityWithSpecializationsGuest[]>('/universities-with-specializations-guests');
-export const searchUniversities = (name: string) => fetchApi<University[]>(`/universities/search?name=${encodeURIComponent(name)}`);
+export const getUniversitiesWithSpecializationsAdmin = () => fetchApiBoth<UniversityWithSpecializationsAdmin[]>('/universities-with-specializations');
+export const getUniversitiesWithSpecializationsGuests = () => fetchApiBoth<UniversityWithSpecializationsGuest[]>('/universities-with-specializations-guests');
+export const searchUniversities = (name: string) => fetchApiBoth<University[]>(`/universities/search?name=${encodeURIComponent(name)}`);
 
 export const addSpecializationToUniversity = (universityId: number, data: { specialization_name: string } | { specialization_id: number }) => {
   // Assuming the API expects specialization_name for new, or specialization_id for existing.
@@ -111,25 +150,25 @@ export const addSpecializationToUniversity = (universityId: number, data: { spec
     formData.append('specialization_id', data.specialization_id.toString());
   }
   // The API spec body for 4.4 is "غير محدد". Sending as FormData for now.
-  return fetchApi<AddSpecializationToUniversityResponse>(`/universities/${universityId}/add-specialization`, { method: 'POST', body: formData });
+  return fetchApiBoth<AddSpecializationToUniversityResponse>(`/universities/${universityId}/add-specialization`, { method: 'POST', body: formData });
 };
 
 
 // 5. Archive
-export const getArchivedTheses = () => fetchApi<ArchivedThesis[]>('/archived-theses');
-export const restoreArchivedThesis = (id: number) => fetchApi<RestoreArchivedThesisResponse>(`/archived-theses/${id}/restore`, { method: 'POST' });
+export const getArchivedTheses = () => fetchApiBoth<ArchivedThesis[]>('/archived-theses');
+export const restoreArchivedThesis = (id: number) => fetchApiBoth<RestoreArchivedThesisResponse>(`/archived-theses/${id}/restore`, { method: 'POST' });
 // Updated as per user request
-export const permanentlyDeleteThesis = (id: number) => fetchApi<DeleteThesisResponse>(`/archived-theses/${id}`, { method: 'DELETE' });
+export const permanentlyDeleteThesis = (id: number) => fetchApiBoth<DeleteThesisResponse>(`/archived-theses/${id}`, { method: 'DELETE' });
 
 // 6. Reserved Titles
-export const getLatestReservedTitles = () => fetchApi<ReservedThesisTitle[]>('/reserved-thesis-titles-latest');
-export const getLatestReservedTitlesGuests = () => fetchApi<ReservedThesisTitleGuest[]>('/reserved-thesis-titles-latest-guests');
+export const getLatestReservedTitles = () => fetchApiBoth<ReservedThesisTitle[]>('/reserved-thesis-titles-latest');
+export const getLatestReservedTitlesGuests = () => fetchApiBoth<ReservedThesisTitleGuest[]>('/reserved-thesis-titles-latest-guests');
 
 export const addReservedTitle = (data: Omit<ReservedThesisTitle, 'id'>) => {
   // API doc says params, but for POST this should be body. Assuming URL encoded form data or JSON.
   // For simplicity, let's use URLSearchParams which results in x-www-form-urlencoded
   const body = new URLSearchParams(data as any);
-  return fetchApi<AddReservedTitleResponse>('/reserved-thesis-titles', {
+  return fetchApiBoth<AddReservedTitleResponse>('/reserved-thesis-titles', {
     method: 'POST',
     body: body,
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
@@ -139,13 +178,46 @@ export const addReservedTitle = (data: Omit<ReservedThesisTitle, 'id'>) => {
 export const updateReservedTitle = (id: number, data: Omit<ReservedThesisTitle, 'id'>) => {
   // API doc says params, but for PUT this should be body.
   const body = new URLSearchParams(data as any);
-  return fetchApi<UpdateReservedTitleResponse>(`/reserved-thesis-titles/${id}`, {
+  return fetchApiBoth<UpdateReservedTitleResponse>(`/reserved-thesis-titles/${id}`, {
     method: 'PUT',
     body: body,
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
   });
 };
 
-export const deleteReservedTitle = (id: number) => fetchApi<DeleteReservedTitleResponse>(`/reserved-thesis-titles/${id}`, { method: 'DELETE' });
-export const searchReservedTitles = (query: string) => fetchApi<ReservedThesisTitle[]>(`/reserved-thesis-titles-search?q=${encodeURIComponent(query)}`);
-export const searchReservedTitlesGuests = (query: string) => fetchApi<ReservedThesisTitleGuest[]>(`/reserved-thesis-titles-search-guests?q=${encodeURIComponent(query)}`);
+export const deleteReservedTitle = (id: number) => fetchApiBoth<DeleteReservedTitleResponse>(`/reserved-thesis-titles/${id}`, { method: 'DELETE' });
+export const searchReservedTitles = (query: string) => fetchApiBoth<ReservedThesisTitle[]>(`/reserved-thesis-titles-search?q=${encodeURIComponent(query)}`);
+export const searchReservedTitlesGuests = (query: string) => fetchApiBoth<ReservedThesisTitleGuest[]>(`/reserved-thesis-titles-search-guests?q=${encodeURIComponent(query)}`);
+
+// 7. Check Thesis Title Exists
+/**
+ * يتحقق من وجود عنوان رسالة في كل من الخادم المحلي والاستضافة.
+ * يعرض Toast إذا كان العنوان موجود في أي خادم.
+ * يرجع true إذا كان العنوان موجود في أي خادم، false إذا لم يوجد في أي خادم.
+ */
+export async function checkThesisTitleExists(title: string): Promise<boolean> {
+  const urls = [
+    { base: EXTERNAL_LINKS.API_BASE_URL_LOCAL, label: 'الخادم المحلي' },
+    { base: EXTERNAL_LINKS.API_BASE_URL_PROD, label: 'الاستضافة' }
+  ];
+  let found = false;
+  await Promise.all(urls.map(async ({ base, label }) => {
+    try {
+      const res = await fetch(`${base.replace(/\/$/, '')}/theses/search?title=${encodeURIComponent(title)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          found = true;
+          toast({
+            title: 'تنبيه',
+            description: `العنوان موجود بالفعل في ${label}`,
+            variant: 'destructive',
+          });
+        }
+      }
+    } catch {
+      // تجاهل أخطاء الاتصال بالخادم
+    }
+  }));
+  return found;
+}

@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Archive, Edit, FileText, Search, Trash2, Download, FilterX } from 'lucide-react';
 import Link from 'next/link';
 import type { Thesis, University, Specialization, Degree, ThesisYear } from '@/types/api';
-import { searchTheses as apiSearchTheses, archiveThesis as apiArchiveThesis, getLatestTheses } from '@/lib/api';
+import { searchTheses as apiSearchTheses, archiveThesis as apiArchiveThesis, getLatestTheses, getRemoteIdByLocalId } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Skeleton } from '@/components/ui/skeleton';
@@ -34,7 +34,23 @@ export function ThesesClientPage({ initialTheses, universities, specializations,
     year: '',
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [remoteIds, setRemoteIds] = useState<Record<number, string | null>>({});
   const { toast } = useToast();
+
+  // جلب id_remote لكل رسالة عند تحميل أو تحديث القائمة
+  useEffect(() => {
+    const fetchRemoteIds = async () => {
+      const ids: Record<number, string | null> = {};
+      await Promise.all(
+        theses.map(async (thesis) => {
+          const remoteId = await getRemoteIdByLocalId(thesis.id);
+          ids[thesis.id] = remoteId;
+        })
+      );
+      setRemoteIds(ids);
+    };
+    fetchRemoteIds();
+  }, [theses]);
 
   const handleSearch = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -184,7 +200,8 @@ export function ThesesClientPage({ initialTheses, universities, specializations,
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="border border-gray-200">المعرف</TableHead>
+              <TableHead className="border border-gray-200">محلي</TableHead>
+              <TableHead className="border border-gray-200">خارجي</TableHead>
               <TableHead className="border border-gray-200" style={{ padding: 0, width: '1px' }}>
                 <div style={{ borderLeft: '2px solid #e5e7eb', height: '100%', minHeight: '32px' }} />
               </TableHead>
@@ -201,6 +218,7 @@ export function ThesesClientPage({ initialTheses, universities, specializations,
             {theses.map((thesis) => (
               <TableRow key={thesis.id}>
                 <TableCell className="border border-gray-200 font-mono text-xs text-muted-foreground">{thesis.id}</TableCell>
+                <TableCell className="border border-gray-200 font-mono text-xs text-muted-foreground">{remoteIds[thesis.id] || '-'}</TableCell>
                 <TableCell className="border border-gray-200" style={{ padding: 0, width: '1px' }}>
                   <div style={{ borderLeft: '2px solid #e5e7eb', height: '100%', minHeight: '32px' }} />
                 </TableCell>

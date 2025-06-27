@@ -269,3 +269,19 @@ export async function sendUuidsToBothServers(id_local: number | string, id_remot
     }
   }));
 }
+
+// جلب id_remote بناءً على id_local من جدول uuids
+export async function getRemoteIdByLocalId(id_local: string | number): Promise<string | null> {
+  try {
+    const res = await fetch(`${EXTERNAL_LINKS.API_BASE_URL_LOCAL}uuids/search?id_local=${id_local}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0 && data[0].id_remote) {
+        return data[0].id_remote;
+      }
+    }
+  } catch {
+    // تجاهل الأخطاء
+  }
+  return null;
+}

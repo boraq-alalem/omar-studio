@@ -24,7 +24,7 @@ export const API_ENDPOINTS = {
 
 export const EXTERNAL_LINKS = {
   API_BASE_URL_LOCAL: 'http://127.0.0.1:8000/api/',
-  API_BASE_URL_PROD: 'https://alalem.c-library.org/api',
+  API_BASE_URL_PROD: 'https://alalem.c-library.org/api/',
   PLACEHOLDER_IMAGE: 'https://placehold.co/40x40.png',
   FONTS_GOOGLEAPIS: 'https://fonts.googleapis.com',
   FONTS_GSTATIC: 'https://fonts.gstatic.com',

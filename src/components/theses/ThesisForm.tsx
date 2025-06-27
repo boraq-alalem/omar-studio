@@ -16,9 +16,10 @@ import { arSA } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import type { Thesis, Degree, UniversityWithSpecializationsAdmin, Specialization as SpecializationType } from "@/types/api";
-import { addThesisBoth, updateThesis, getUniversitiesWithSpecializationsAdmin, getDegrees, checkThesisTitleExists, sendUuidsToBothServers } from "@/lib/api";
+import { addThesisBoth, updateThesisBoth, getUniversitiesWithSpecializationsAdmin, getDegrees, checkThesisTitleExists, sendUuidsToBothServers, getRemoteIdByLocalId } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Combobox } from "@/components/ui/combobox"; // Added Combobox import
+import { API_ENDPOINTS, EXTERNAL_LINKS } from '@/lib/endpoints';
 
 const thesisFormSchema = z.object({
   title: z.string().min(5, { message: "العنوان يجب أن يكون 5 أحرف على الأقل." }),
@@ -151,8 +152,27 @@ export function ThesisForm({ initialData, degrees }: ThesisFormProps) {
 
     try {
       if (initialData) {
-        await updateThesis(initialData.id, formData);
-        toast({ title: "نجاح", description: "تم تعديل الرسالة بنجاح." });
+        // استخراج المعرفات من window.history.state.usr أو من initialData
+        let idLocal = initialData.id;
+        let idRemote: string | null = null;
+        if (typeof window !== 'undefined') {
+          // @ts-ignore
+          const nav = window.history.state && window.history.state.usr;
+          if (nav) {
+            if (nav.id_local) idLocal = nav.id_local;
+            if (nav.id_remote) idRemote = nav.id_remote;
+          }
+        }
+        
+        // إذا لم يتم تمرير id_remote من state، جلبه من API
+        if (!idRemote) {
+          idRemote = await getRemoteIdByLocalId(idLocal);
+        }
+        
+        console.log('Updating thesis - Local ID:', idLocal, 'Remote ID:', idRemote);
+        
+        await updateThesisBoth(idLocal, idRemote, formData);
+        toast({ title: "نجاح", description: "تم تعديل الرسالة بنجاح في كل الخوادم." });
       } else {
         if (!data.pdf) {
           form.setError("pdf", { type: "manual", message: "ملف PDF مطلوب عند إضافة رسالة جديدة." });

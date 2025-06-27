@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { AlertTriangle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { getRemoteIdByLocalId } from '@/lib/api';
+import { useToast } from '@/hooks/use-toast';
 
 
 interface EditThesisClientPageProps {
@@ -24,6 +25,7 @@ export function EditThesisClientPage({
   const [isLoading, setIsLoading] = useState(!initialThesisData); 
   const [error, setError] = useState<string | null>(null);
   const [idRemote, setIdRemote] = useState<string | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (!initialThesisData) {
@@ -45,12 +47,26 @@ export function EditThesisClientPage({
       const nav = window.history.state && window.history.state.usr;
       if (nav && nav.id_remote) {
         setIdRemote(nav.id_remote);
+        toast({
+          title: 'معرف الاستضافة',
+          description: `id_remote: ${nav.id_remote}`,
+          variant: 'default',
+        });
         return;
       }
     }
     // إذا لم يتم تمرير id_remote من state، جلبه من API
     if (id) {
-      getRemoteIdByLocalId(id).then(setIdRemote);
+      getRemoteIdByLocalId(id).then((remote) => {
+        setIdRemote(remote);
+        if (remote) {
+          toast({
+            title: 'معرف الاستضافة',
+            description: `id_remote: ${remote}`,
+            variant: 'default',
+          });
+        }
+      });
     }
   }, [thesis]);
 

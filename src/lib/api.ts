@@ -76,23 +76,41 @@ async function fetchApiBoth<T>(endpoint: string, options: RequestInit = {}): Pro
       'Accept': 'application/json',
     },
   };
-  const fetches = urls.map(base => fetch(`${base.replace(/\/$/, '')}${endpoint}`, { ...defaultOptions, ...options }));
+  const fetches = urls.map(base => {
+    const url = `${base.replace(/\/$/, '')}${endpoint}`;
+    console.log('Fetching from:', url);
+    return fetch(url, { ...defaultOptions, ...options });
+  });
   const results = await Promise.allSettled(fetches);
   let allFailed = true;
-  for (const result of results) {
+  let lastError = null;
+  
+  for (let i = 0; i < results.length; i++) {
+    const result = results[i];
+    const url = urls[i];
+    
     if (result.status === 'fulfilled' && result.value.ok) {
       allFailed = false;
+      console.log(`Success from ${url}:`, result.value.status);
       if (result.value.status === 204) return undefined as T;
       return result.value.json();
+    } else if (result.status === 'fulfilled') {
+      console.error(`HTTP error from ${url}:`, result.value.status, result.value.statusText);
+      lastError = `HTTP ${result.value.status} from ${url}`;
+    } else {
+      console.error(`Network error from ${url}:`, result.reason);
+      lastError = `Network error from ${url}: ${result.reason}`;
     }
   }
+  
   if (allFailed) {
+    console.error('All API requests failed. Last error:', lastError);
     if (typeof window !== 'undefined') {
       setTimeout(() => {
         window.dispatchEvent(new CustomEvent('server-error', { detail: 'فشل بالاتصال بالخادم المحلي أو الاستضافة' }));
       }, 0);
     }
-    throw new Error('Both API requests failed');
+    throw new Error(`Both API requests failed. Last error: ${lastError}`);
   }
 }
 
@@ -284,4 +302,48 @@ export async function getRemoteIdByLocalId(id_local: string | number): Promise<s
     // تجاهل الأخطاء
   }
   return null;
+}
+
+// تعديل الرسالة في كلا الخادمين باستخدام المعرفات الصحيحة
+export async function updateThesisBoth(id_local: number, id_remote: string | null, formData: FormData): Promise<void> {
+  const requests = [];
+  
+  // طلب الخادم المحلي
+  const localFormData = new FormData();
+  formData.forEach((value, key) => localFormData.append(key, value));
+  localFormData.append('_method', 'PUT');
+  requests.push(
+    fetch(`${EXTERNAL_LINKS.API_BASE_URL_LOCAL}theses/${id_local}`, {
+      method: 'POST',
+      body: localFormData,
+    })
+  );
+  
+  // طلب الاستضافة إذا توفر id_remote
+  if (id_remote) {
+    const remoteFormData = new FormData();
+    formData.forEach((value, key) => remoteFormData.append(key, value));
+    remoteFormData.append('_method', 'PUT');
+    requests.push(
+      fetch(`${EXTERNAL_LINKS.API_BASE_URL_PROD}theses/${id_remote}`, {
+        method: 'POST',
+        body: remoteFormData,
+      })
+    );
+  }
+  
+  const results = await Promise.allSettled(requests);
+  
+  // التحقق من النتائج
+  let errors = [];
+  if (results[0].status === 'rejected' || (results[0].status === 'fulfilled' && !results[0].value.ok)) {
+    errors.push('فشل التعديل في الخادم المحلي');
+  }
+  if (id_remote && results[1] && (results[1].status === 'rejected' || (results[1].status === 'fulfilled' && !results[1].value.ok))) {
+    errors.push('فشل التعديل في الاستضافة');
+  }
+  
+  if (errors.length > 0) {
+    throw new Error(errors.join('. '));
+  }
 }

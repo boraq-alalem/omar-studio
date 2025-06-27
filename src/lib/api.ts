@@ -200,24 +200,24 @@ export async function checkThesisTitleExists(title: string): Promise<boolean> {
     { base: EXTERNAL_LINKS.API_BASE_URL_LOCAL, label: 'الخادم المحلي' },
     { base: EXTERNAL_LINKS.API_BASE_URL_PROD, label: 'الاستضافة' }
   ];
-  let found = false;
-  await Promise.all(urls.map(async ({ base, label }) => {
+  const results = await Promise.all(urls.map(async ({ base, label }) => {
     try {
       const res = await fetch(`${base.replace(/\/$/, '')}/theses/search?title=${encodeURIComponent(title)}`);
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) {
-          found = true;
           toast({
             title: 'تنبيه',
             description: `العنوان موجود بالفعل في ${label}`,
             variant: 'destructive',
           });
+          return true;
         }
       }
     } catch {
       // تجاهل أخطاء الاتصال بالخادم
     }
+    return false;
   }));
-  return found;
+  return results.some(Boolean);
 }

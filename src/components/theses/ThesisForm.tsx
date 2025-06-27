@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -17,7 +16,7 @@ import { arSA } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import type { Thesis, Degree, UniversityWithSpecializationsAdmin, Specialization as SpecializationType } from "@/types/api";
-import { addThesis, updateThesis, getUniversitiesWithSpecializationsAdmin, getDegrees } from "@/lib/api";
+import { addThesis, updateThesis, getUniversitiesWithSpecializationsAdmin, getDegrees, checkThesisTitleExists } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Combobox } from "@/components/ui/combobox"; // Added Combobox import
 
@@ -149,6 +148,12 @@ export function ThesisForm({ initialData }: ThesisFormProps) {
       } else {
         if (!data.pdf) {
           form.setError("pdf", { type: "manual", message: "ملف PDF مطلوب عند إضافة رسالة جديدة." });
+          setIsSubmitting(false);
+          return;
+        }
+        // تحقق من العنوان في كل الخوادم قبل الإضافة
+        const exists = await checkThesisTitleExists(data.title);
+        if (exists) {
           setIsSubmitting(false);
           return;
         }

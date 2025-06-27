@@ -347,3 +347,75 @@ export async function updateThesisBoth(id_local: number, id_remote: string | nul
     throw new Error(errors.join('. '));
   }
 }
+
+// أرشفة الرسالة في كلا الخادمين باستخدام المعرفات الصحيحة
+export async function archiveThesisBoth(id_local: number, id_remote: string | null): Promise<void> {
+  const requests = [];
+  
+  // طلب الخادم المحلي
+  requests.push(
+    fetch(`${EXTERNAL_LINKS.API_BASE_URL_LOCAL}theses/${id_local}`, {
+      method: 'DELETE',
+    })
+  );
+  
+  // طلب الاستضافة إذا توفر id_remote
+  if (id_remote) {
+    requests.push(
+      fetch(`${EXTERNAL_LINKS.API_BASE_URL_PROD}theses/${id_remote}`, {
+        method: 'DELETE',
+      })
+    );
+  }
+  
+  const results = await Promise.allSettled(requests);
+  
+  // التحقق من النتائج
+  let errors = [];
+  if (results[0].status === 'rejected' || (results[0].status === 'fulfilled' && !results[0].value.ok)) {
+    errors.push('فشل الأرشفة في الخادم المحلي');
+  }
+  if (id_remote && results[1] && (results[1].status === 'rejected' || (results[1].status === 'fulfilled' && !results[1].value.ok))) {
+    errors.push('فشل الأرشفة في الاستضافة');
+  }
+  
+  if (errors.length > 0) {
+    throw new Error(errors.join('. '));
+  }
+}
+
+// استعادة الرسالة من الأرشيف في كلا الخادمين باستخدام المعرفات الصحيحة
+export async function restoreArchivedThesisBoth(id_local: number, id_remote: string | null): Promise<void> {
+  const requests = [];
+  
+  // طلب الخادم المحلي
+  requests.push(
+    fetch(`${EXTERNAL_LINKS.API_BASE_URL_LOCAL}archived-theses/${id_local}/restore`, {
+      method: 'POST',
+    })
+  );
+  
+  // طلب الاستضافة إذا توفر id_remote
+  if (id_remote) {
+    requests.push(
+      fetch(`${EXTERNAL_LINKS.API_BASE_URL_PROD}archived-theses/${id_remote}/restore`, {
+        method: 'POST',
+      })
+    );
+  }
+  
+  const results = await Promise.allSettled(requests);
+  
+  // التحقق من النتائج
+  let errors = [];
+  if (results[0].status === 'rejected' || (results[0].status === 'fulfilled' && !results[0].value.ok)) {
+    errors.push('فشل الاستعادة في الخادم المحلي');
+  }
+  if (id_remote && results[1] && (results[1].status === 'rejected' || (results[1].status === 'fulfilled' && !results[1].value.ok))) {
+    errors.push('فشل الاستعادة في الاستضافة');
+  }
+  
+  if (errors.length > 0) {
+    throw new Error(errors.join('. '));
+  }
+}

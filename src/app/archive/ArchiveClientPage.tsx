@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { ArchiveRestore, Trash2, FileText, Download } from 'lucide-react';
 import type { ArchivedThesis } from '@/types/api';
-import { restoreArchivedThesis, permanentlyDeleteThesis, getArchivedTheses } from '@/lib/api';
+import { restoreArchivedThesisBoth, permanentlyDeleteThesis, getArchivedTheses, getRemoteIdByLocalId } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Card } from '@/components/ui/card';
@@ -19,6 +19,7 @@ export function ArchiveClientPage({ initialArchivedTheses }: ArchiveClientPagePr
   const [archivedTheses, setArchivedTheses] = useState<ArchivedThesis[]>([]); // ابدأ ببيانات فارغة
   const [isLoading, setIsLoading] = useState(false); // For actions
   const [refreshing, setRefreshing] = useState(true); // ابدأ بتحميل البيانات
+  const [remoteIds, setRemoteIds] = useState<{ [id_local: number]: string | null }>({});
   const { toast } = useToast();
 
   // جلب البيانات تلقائياً عند تحميل الصفحة
@@ -38,6 +39,23 @@ export function ArchiveClientPage({ initialArchivedTheses }: ArchiveClientPagePr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // جلب id_remote لكل رسالة عند تحميل الرسائل
+  useEffect(() => {
+    async function fetchRemoteIds() {
+      const ids: { [id_local: number]: string | null } = {};
+      await Promise.all(
+        archivedTheses.map(async (thesis) => {
+          const remoteId = await getRemoteIdByLocalId(thesis.id);
+          ids[thesis.id] = remoteId;
+        })
+      );
+      setRemoteIds(ids);
+    }
+    if (archivedTheses.length > 0) {
+      fetchRemoteIds();
+    }
+  }, [archivedTheses]);
+
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
@@ -54,10 +72,13 @@ export function ArchiveClientPage({ initialArchivedTheses }: ArchiveClientPagePr
   const handleRestore = async (id: number) => {
     setIsLoading(true);
     try {
-      await restoreArchivedThesis(id);
+      const idRemote = remoteIds[id];
+      console.log('Restoring - Local ID:', id, 'Remote ID:', idRemote);
+      await restoreArchivedThesisBoth(id, idRemote);
       setArchivedTheses(archivedTheses.filter(thesis => thesis.id !== id));
       toast({ title: "نجاح", description: "تمت استعادة الرسالة بنجاح." });
     } catch (error) {
+      console.error('Restore error:', error);
       toast({ title: "خطأ في الاستعادة", description: "لم نتمكن من استعادة الرسالة. حاول مرة أخرى.", variant: "destructive" });
     } finally {
       setIsLoading(false);
@@ -114,21 +135,35 @@ export function ArchiveClientPage({ initialArchivedTheses }: ArchiveClientPagePr
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>العنوان</TableHead>
-            <TableHead>المؤلف</TableHead>
-            <TableHead>الجامعة</TableHead>
-            <TableHead>السنة</TableHead>
-            <TableHead>الإجراءات</TableHead>
+            <TableHead className="border border-gray-200">محلي</TableHead>
+            <TableHead className="border border-gray-200">خارجي</TableHead>
+            <TableHead className="border border-gray-200" style={{ padding: 0, width: '1px' }}>
+              <div style={{ borderLeft: '2px solid #e5e7eb', height: '100%', minHeight: '32px' }} />
+            </TableHead>
+            <TableHead className="border border-gray-200">العنوان</TableHead>
+            <TableHead className="border border-gray-200">المؤلف</TableHead>
+            <TableHead className="border border-gray-200">الجامعة</TableHead>
+            <TableHead className="border border-gray-200">التخصص</TableHead>
+            <TableHead className="border border-gray-200">الدرجة</TableHead>
+            <TableHead className="border border-gray-200">السنة</TableHead>
+            <TableHead className="border border-gray-200">الإجراءات</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {archivedTheses.map((thesis) => (
             <TableRow key={thesis.id}>
-              <TableCell className="font-medium">{thesis.title}</TableCell>
-              <TableCell>{thesis.author.name}</TableCell>
-              <TableCell>{thesis.university.name}</TableCell>
-              <TableCell>{thesis.year}</TableCell>
-              <TableCell className="space-x-1 whitespace-nowrap">
+              <TableCell className="border border-gray-200 font-mono text-xs text-muted-foreground">{thesis.id}</TableCell>
+              <TableCell className="border border-gray-200 font-mono text-xs text-muted-foreground">{remoteIds[thesis.id] ?? <span className="text-gray-400">...</span>}</TableCell>
+              <TableCell className="border border-gray-200" style={{ padding: 0, width: '1px' }}>
+                <div style={{ borderLeft: '2px solid #e5e7eb', height: '100%', minHeight: '32px' }} />
+              </TableCell>
+              <TableCell className="border border-gray-200 font-medium">{thesis.title}</TableCell>
+              <TableCell className="border border-gray-200">{thesis.author.name}</TableCell>
+              <TableCell className="border border-gray-200">{thesis.university.name}</TableCell>
+              <TableCell className="border border-gray-200">{thesis.specialization.name}</TableCell>
+              <TableCell className="border border-gray-200">{thesis.degree.name}</TableCell>
+              <TableCell className="border border-gray-200">{thesis.year}</TableCell>
+              <TableCell className="border border-gray-200 space-x-1 whitespace-nowrap">
                  <Button variant="ghost" size="icon" asChild>
                     <a href={`${thesis.pdf_path}`} target="_blank" rel="noopener noreferrer" aria-label="Download PDF">
                       <Download className="h-4 w-4 text-blue-500" />

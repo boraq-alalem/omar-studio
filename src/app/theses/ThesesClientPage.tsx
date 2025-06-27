@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Archive, Edit, FileText, Search, Trash2, Download, FilterX } from 'lucide-react';
 import Link from 'next/link';
 import type { Thesis, University, Specialization, Degree, ThesisYear } from '@/types/api';
-import { searchTheses as apiSearchTheses, archiveThesis as apiArchiveThesis, getLatestTheses, getRemoteIdByLocalId } from '@/lib/api';
+import { searchTheses as apiSearchTheses, archiveThesisBoth, getLatestTheses, getRemoteIdByLocalId } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Skeleton } from '@/components/ui/skeleton';
@@ -73,10 +73,13 @@ export function ThesesClientPage({ initialTheses, universities, specializations,
 
   const handleArchive = async (id: number) => {
     try {
-      await apiArchiveThesis(id);
+      const idRemote = remoteIds[id];
+      console.log('Archiving - Local ID:', id, 'Remote ID:', idRemote);
+      await archiveThesisBoth(id, idRemote);
       setTheses(theses.filter(thesis => thesis.id !== id));
       toast({ title: "نجاح", description: "تم نقل الرسالة إلى الأرشيف بنجاح." });
     } catch (error) {
+      console.error('Archive error:', error);
       toast({ title: "خطأ في الأرشفة", description: "لم نتمكن من أرشفة الرسالة. حاول مرة أخرى.", variant: "destructive" });
     }
   };

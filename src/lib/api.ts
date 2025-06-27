@@ -22,7 +22,7 @@ import type {
   DeleteReservedTitleResponse,
   ApiError
 } from '@/types/api';
-import { EXTERNAL_LINKS } from './endpoints';
+import { API_ENDPOINTS, EXTERNAL_LINKS } from './endpoints';
 import { useServerError } from '@/contexts/ServerErrorContext';
 import { toast } from '@/hooks/use-toast';
 
@@ -220,4 +220,52 @@ export async function checkThesisTitleExists(title: string): Promise<boolean> {
     return false;
   }));
   return results.some(Boolean);
+}
+
+// إضافة دالة addThesisBoth التي ترسل الطلب إلى كل خادم وتجمع المعرفات
+export async function addThesisBoth(formData: FormData): Promise<{ id_local: number|null, id_remote: number|null }> {
+  const endpoints = [
+    { base: EXTERNAL_LINKS.API_BASE_URL_LOCAL, key: 'id_local' },
+    { base: EXTERNAL_LINKS.API_BASE_URL_PROD, key: 'id_remote' }
+  ];
+  const ids: { id_local: number|null, id_remote: number|null } = { id_local: null, id_remote: null };
+  await Promise.all(endpoints.map(async ({ base, key }) => {
+    try {
+      const fd = new FormData();
+      formData.forEach((value, name) => {
+        fd.append(name, value);
+      });
+      const res = await fetch(`${base.replace(/\/$/, '')}${API_ENDPOINTS.ADD_THESIS}`, { method: 'POST', body: fd });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.thesis && data.thesis.id) {
+          ids[key] = data.thesis.id;
+        }
+      }
+    } catch (e) {
+      // تجاهل أخطاء الاتصال
+    }
+  }));
+  return ids;
+}
+
+// إضافة دالة sendUuidsToBothServers لإرسال المعرفات
+export async function sendUuidsToBothServers(id_local: number | string, id_remote: number | string) {
+  const endpoints = [
+    EXTERNAL_LINKS.API_BASE_URL_LOCAL,
+    EXTERNAL_LINKS.API_BASE_URL_PROD
+  ];
+  // التأكد أن القيم نصوص
+  const body = JSON.stringify({ id_local: String(id_local), id_remote: String(id_remote) });
+  await Promise.all(endpoints.map(async (base) => {
+    try {
+      await fetch(`${base.replace(/\/$/, '')}/uuids`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body
+      });
+    } catch (e) {
+      // تجاهل أخطاء الاتصال
+    }
+  }));
 }

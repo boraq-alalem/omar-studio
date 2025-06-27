@@ -16,7 +16,7 @@ import { arSA } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import type { Thesis, Degree, UniversityWithSpecializationsAdmin, Specialization as SpecializationType } from "@/types/api";
-import { addThesis, updateThesis, getUniversitiesWithSpecializationsAdmin, getDegrees, checkThesisTitleExists } from "@/lib/api";
+import { addThesisBoth, updateThesis, getUniversitiesWithSpecializationsAdmin, getDegrees, checkThesisTitleExists, sendUuidsToBothServers } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Combobox } from "@/components/ui/combobox"; // Added Combobox import
 
@@ -157,7 +157,11 @@ export function ThesisForm({ initialData }: ThesisFormProps) {
           setIsSubmitting(false);
           return;
         }
-        await addThesis(formData);
+        // إضافة الرسالة في كل خادم وجمع المعرفات
+        const { id_local, id_remote } = await addThesisBoth(formData);
+        if (id_local && id_remote) {
+          await sendUuidsToBothServers(id_local, id_remote);
+        }
         toast({ title: "نجاح", description: "تمت إضافة الرسالة بنجاح." });
       }
       router.push("/theses");

@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { ArchiveRestore, Trash2, FileText, Download } from 'lucide-react';
 import type { ArchivedThesis } from '@/types/api';
-import { restoreArchivedThesisBoth, permanentlyDeleteThesis, getArchivedTheses, getRemoteIdByLocalId } from '@/lib/api';
+import { restoreArchivedThesisBoth, permanentlyDeleteThesisBoth, getArchivedTheses, getRemoteIdByLocalId } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Card } from '@/components/ui/card';
@@ -88,11 +88,13 @@ export function ArchiveClientPage({ initialArchivedTheses }: ArchiveClientPagePr
   const handleDeletePermanently = async (id: number) => {
     setIsLoading(true);
     try {
-      // Using the API endpoint from section 5.3: DELETE /api/theses/{id}
-      await permanentlyDeleteThesis(id); 
+      const idRemote = remoteIds[id];
+      console.log('Permanently deleting - Local ID:', id, 'Remote ID:', idRemote);
+      await permanentlyDeleteThesisBoth(id, idRemote);
       setArchivedTheses(archivedTheses.filter(thesis => thesis.id !== id));
       toast({ title: "نجاح", description: "تم حذف الرسالة نهائياً." });
     } catch (error) {
+      console.error('Permanent delete error:', error);
       toast({ title: "خطأ في الحذف", description: "لم نتمكن من حذف الرسالة نهائياً. حاول مرة أخرى.", variant: "destructive" });
     } finally {
       setIsLoading(false);

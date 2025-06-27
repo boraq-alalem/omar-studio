@@ -419,3 +419,59 @@ export async function restoreArchivedThesisBoth(id_local: number, id_remote: str
     throw new Error(errors.join('. '));
   }
 }
+
+// حذف الرسالة نهائياً في كلا الخادمين باستخدام المعرفات الصحيحة
+export async function permanentlyDeleteThesisBoth(id_local: number, id_remote: string | null): Promise<void> {
+  const requests = [];
+  
+  // طلب الخادم المحلي
+  requests.push(
+    fetch(`${EXTERNAL_LINKS.API_BASE_URL_LOCAL}archived-theses/${id_local}`, {
+      method: 'DELETE',
+    })
+  );
+  
+  // طلب الاستضافة إذا توفر id_remote
+  if (id_remote) {
+    requests.push(
+      fetch(`${EXTERNAL_LINKS.API_BASE_URL_PROD}archived-theses/${id_remote}`, {
+        method: 'DELETE',
+      })
+    );
+  }
+  
+  const results = await Promise.allSettled(requests);
+  
+  // التحقق من النتائج
+  let errors = [];
+  if (results[0].status === 'rejected' || (results[0].status === 'fulfilled' && !results[0].value.ok)) {
+    errors.push('فشل الحذف في الخادم المحلي');
+  }
+  if (id_remote && results[1] && (results[1].status === 'rejected' || (results[1].status === 'fulfilled' && !results[1].value.ok))) {
+    errors.push('فشل الحذف في الاستضافة');
+  }
+  
+  if (errors.length > 0) {
+    throw new Error(errors.join('. '));
+  }
+  
+  // حذف المعرفات من جدول uuids بعد نجاح الحذف
+  await deleteUuidsFromBothServers(id_local);
+}
+
+// حذف المعرفات من جدول uuids في كلا الخادمين
+export async function deleteUuidsFromBothServers(id_local: number): Promise<void> {
+  const endpoints = [
+    EXTERNAL_LINKS.API_BASE_URL_LOCAL,
+    EXTERNAL_LINKS.API_BASE_URL_PROD
+  ];
+  await Promise.all(endpoints.map(async (base) => {
+    try {
+      await fetch(`${base.replace(/\/$/, '')}/uuids?id_local=${id_local}`, {
+        method: 'DELETE',
+      });
+    } catch (e) {
+      // تجاهل أخطاء الاتصال
+    }
+  }));
+}

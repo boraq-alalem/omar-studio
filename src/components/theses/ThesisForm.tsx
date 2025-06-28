@@ -88,17 +88,6 @@ export function ThesisForm({ initialData, degrees }: ThesisFormProps) {
         }
         setUniversitiesWithSpecs(univs);
         setDegrees(fetchedDegrees || []);
-
-        if (initialData) {
-           form.reset({
-            title: initialData.title,
-            year: initialData.year ? new Date(parseInt(initialData.year, 10), 0, 1) : new Date(),
-            university_id: initialData.university?.id.toString() || "",
-            specialization_id: initialData.specialization?.id.toString() || "",
-            degree_id: initialData.degree?.id.toString() || "",
-            author_name: initialData.author?.name || initialData.author_name || "",
-           });
-        }
       } catch (err) {
         toast({ title: "خطأ", description: "فشل تحميل بيانات الجامعات أو الدرجات.", variant: "destructive" });
       } finally {
@@ -106,8 +95,7 @@ export function ThesisForm({ initialData, degrees }: ThesisFormProps) {
       }
     }
     fetchData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialData, degrees]); 
+  }, [degrees]); 
 
   const watchedUniversityId = form.watch('university_id');
 
@@ -117,24 +105,19 @@ export function ThesisForm({ initialData, degrees }: ThesisFormProps) {
       const newAvailableSpecializations = selectedUniv ? selectedUniv.specializations : [];
       setAvailableSpecializations(newAvailableSpecializations);
       
-      // Only set specialization_id if it's not already correctly set for the initialData or if university changes
       const currentSpecId = form.getValues('specialization_id');
-      if (initialData?.specialization?.id.toString() === currentSpecId && initialData?.university?.id.toString() === watchedUniversityId) {
-        // It's already correctly set from initialData, do nothing to prevent reset
-      } else if (newAvailableSpecializations.length > 0 && !newAvailableSpecializations.find(s => s.id.toString() === currentSpecId)) {
-         form.setValue('specialization_id', ''); // Reset if current spec not in new list
+      if (newAvailableSpecializations.length > 0 && !newAvailableSpecializations.find(s => s.id.toString() === currentSpecId)) {
+         form.setValue('specialization_id', '');
       } else if (newAvailableSpecializations.length === 0) {
         form.setValue('specialization_id', '');
       }
-
     } else {
       setAvailableSpecializations([]);
       if (form.getValues('specialization_id') !== '') {
         form.setValue('specialization_id', '');
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [watchedUniversityId, universitiesWithSpecs, initialData?.university?.id]);
+  }, [watchedUniversityId, universitiesWithSpecs]);
 
 
   async function onSubmit(data: ThesisFormValues) {

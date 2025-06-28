@@ -324,20 +324,29 @@ export async function addThesisBoth(formData: FormData): Promise<{ id_local: num
 // إضافة دالة sendUuidsToBothServers لإرسال المعرفات
 export async function sendUuidsToBothServers(id_local: number | string, id_remote: number | string) {
   const endpoints = [
-    EXTERNAL_LINKS.API_BASE_URL_LOCAL,
-    EXTERNAL_LINKS.API_BASE_URL_PROD
+    { base: EXTERNAL_LINKS.API_BASE_URL_LOCAL, label: 'الخادم المحلي' },
+    { base: EXTERNAL_LINKS.API_BASE_URL_PROD, label: 'الاستضافة' }
   ];
   // التأكد أن القيم نصوص
   const body = JSON.stringify({ id_local: String(id_local), id_remote: String(id_remote) });
-  await Promise.all(endpoints.map(async (base) => {
+  
+  await Promise.all(endpoints.map(async ({ base, label }) => {
     try {
-      await fetch(`${base.replace(/\/$/, '')}/uuids`, {
+      const url = `${base.replace(/\/$/, '')}/uuids`;
+      console.log(`Sending UUIDs to ${label}:`, url, body);
+      
+      const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body
       });
+      
+      console.log(`UUIDs response from ${label}:`, response.status);
+      if (!response.ok) {
+        console.error(`UUIDs error from ${label}:`, await response.text());
+      }
     } catch (e) {
-      // تجاهل أخطاء الاتصال
+      console.error(`UUIDs network error to ${label}:`, e);
     }
   }));
 }

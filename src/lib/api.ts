@@ -240,30 +240,84 @@ export async function checkThesisTitleExists(title: string): Promise<boolean> {
   return results.some(Boolean);
 }
 
+// تقليص PDF إلى 30 صفحة للاستضافة
+async function truncatePdfTo30Pages(pdfFile: File): Promise<File> {
+  try {
+    // استخدام PDF-lib لتقليص الملف
+    const { PDFDocument } = await import('pdf-lib');
+    const pdfBytes = await pdfFile.arrayBuffer();
+    const pdfDoc = await PDFDocument.load(pdfBytes);
+    
+    const pageCount = pdfDoc.getPageCount();
+    if (pageCount <= 30) {
+      return pdfFile; // إرجاع الملف كما هو إذا كان 30 صفحة أو أقل
+    }
+    
+    // إنشاء PDF جديد بأول 30 صفحة
+    const newPdfDoc = await PDFDocument.create();
+    const pages = await newPdfDoc.copyPages(pdfDoc, Array.from({ length: 30 }, (_, i) => i));
+    pages.forEach(page => newPdfDoc.addPage(page));
+    
+    const truncatedPdfBytes = await newPdfDoc.save();
+    return new File([truncatedPdfBytes], pdfFile.name, { type: 'application/pdf' });
+  } catch (error) {
+    console.error('Error truncating PDF:', error);
+    return pdfFile; // إرجاع الملف الأصلي في حالة الخطأ
+  }
+}
+
 // إضافة دالة addThesisBoth التي ترسل الطلب إلى كل خادم وتجمع المعرفات
 export async function addThesisBoth(formData: FormData): Promise<{ id_local: number|null, id_remote: number|null }> {
-  const endpoints = [
-    { base: EXTERNAL_LINKS.API_BASE_URL_LOCAL, key: 'id_local' },
-    { base: EXTERNAL_LINKS.API_BASE_URL_PROD, key: 'id_remote' }
-  ];
+  const pdfFile = formData.get('pdf') as File;
   const ids: { id_local: number|null, id_remote: number|null } = { id_local: null, id_remote: null };
-  await Promise.all(endpoints.map(async ({ base, key }) => {
+  
+  // إرسال للخادم المحلي بالملف الكامل
+  try {
+    const localFormData = new FormData();
+    formData.forEach((value, name) => {
+      localFormData.append(name, value);
+    });
+    const localRes = await fetch(`${EXTERNAL_LINKS.API_BASE_URL_LOCAL.replace(/\/$/, '')}${API_ENDPOINTS.ADD_THESIS}`, { 
+      method: 'POST', 
+      body: localFormData 
+    });
+    if (localRes.ok) {
+      const data = await localRes.json();
+      if (data && data.thesis && data.thesis.id) {
+        ids.id_local = data.thesis.id;
+      }
+    }
+  } catch (e) {
+    // تجاهل أخطاء الاتصال
+  }
+  
+  // إرسال للاستضافة بملف مقلص إلى 30 صفحة
+  if (pdfFile) {
     try {
-      const fd = new FormData();
+      const truncatedPdf = await truncatePdfTo30Pages(pdfFile);
+      const remoteFormData = new FormData();
       formData.forEach((value, name) => {
-        fd.append(name, value);
+        if (name === 'pdf') {
+          remoteFormData.append(name, truncatedPdf);
+        } else {
+          remoteFormData.append(name, value);
+        }
       });
-      const res = await fetch(`${base.replace(/\/$/, '')}${API_ENDPOINTS.ADD_THESIS}`, { method: 'POST', body: fd });
-      if (res.ok) {
-        const data = await res.json();
+      const remoteRes = await fetch(`${EXTERNAL_LINKS.API_BASE_URL_PROD.replace(/\/$/, '')}${API_ENDPOINTS.ADD_THESIS}`, { 
+        method: 'POST', 
+        body: remoteFormData 
+      });
+      if (remoteRes.ok) {
+        const data = await remoteRes.json();
         if (data && data.thesis && data.thesis.id) {
-          ids[key] = data.thesis.id;
+          ids.id_remote = data.thesis.id;
         }
       }
     } catch (e) {
       // تجاهل أخطاء الاتصال
     }
-  }));
+  }
+  
   return ids;
 }
 
@@ -306,9 +360,10 @@ export async function getRemoteIdByLocalId(id_local: string | number): Promise<s
 
 // تعديل الرسالة في كلا الخادمين باستخدام المعرفات الصحيحة
 export async function updateThesisBoth(id_local: number, id_remote: string | null, formData: FormData): Promise<void> {
+  const pdfFile = formData.get('pdf') as File;
   const requests = [];
   
-  // طلب الخادم المحلي
+  // طلب الخادم المحلي بالملف الكامل
   const localFormData = new FormData();
   formData.forEach((value, key) => localFormData.append(key, value));
   localFormData.append('_method', 'PUT');
@@ -319,10 +374,23 @@ export async function updateThesisBoth(id_local: number, id_remote: string | nul
     })
   );
   
-  // طلب الاستضافة إذا توفر id_remote
+  // طلب الاستضافة بملف مقلص إذا توفر id_remote
   if (id_remote) {
     const remoteFormData = new FormData();
-    formData.forEach((value, key) => remoteFormData.append(key, value));
+    
+    if (pdfFile) {
+      const truncatedPdf = await truncatePdfTo30Pages(pdfFile);
+      formData.forEach((value, key) => {
+        if (key === 'pdf') {
+          remoteFormData.append(key, truncatedPdf);
+        } else {
+          remoteFormData.append(key, value);
+        }
+      });
+    } else {
+      formData.forEach((value, key) => remoteFormData.append(key, value));
+    }
+    
     remoteFormData.append('_method', 'PUT');
     requests.push(
       fetch(`${EXTERNAL_LINKS.API_BASE_URL_PROD}theses/${id_remote}`, {

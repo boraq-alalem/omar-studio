@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -17,7 +16,7 @@ import { arSA } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import type { ReservedThesisTitle, UniversityWithSpecializationsAdmin, Specialization as SpecializationType, Degree } from "@/types/api";
-import { addReservedTitle, updateReservedTitle, getUniversitiesWithSpecializationsAdmin, getDegrees } from "@/lib/api";
+import { addReservedTitle, updateReservedTitle, getUniversitiesWithSpecializationsAdmin, getDegrees, checkReservedTitleExists } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Combobox } from "@/components/ui/combobox"; // Added Combobox import
 
@@ -138,6 +137,15 @@ export function ReservedTitleForm({ initialData }: ReservedTitleFormProps) {
 
   async function onSubmit(data: ReservedTitleFormValues) {
     setIsSubmitting(true);
+
+    // تحقق من تكرار العنوان عند الإضافة فقط
+    if (!initialData) {
+      const exists = await checkReservedTitleExists(data.title);
+      if (exists) {
+        setIsSubmitting(false);
+        return; // لا تكمل الإضافة إذا كان العنوان موجوداً
+      }
+    }
 
     const selectedUniversity = universitiesWithSpecs.find(u => u.id.toString() === data.university_id);
     const selectedSpecialization = availableSpecializations.find(s => s.id.toString() === data.specialization_id);

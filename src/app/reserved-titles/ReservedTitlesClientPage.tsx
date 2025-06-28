@@ -122,6 +122,7 @@ export function ReservedTitlesClientPage({ initialReservedTitles }: { initialRes
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>المعرف</TableHead>
               <TableHead>العنوان</TableHead>
               <TableHead>اسم الشخص</TableHead>
               <TableHead>الجامعة</TableHead>
@@ -134,6 +135,7 @@ export function ReservedTitlesClientPage({ initialReservedTitles }: { initialRes
           <TableBody>
             {reservedTitles.map((title) => (
               <TableRow key={title.id}>
+                <TableCell className="font-mono text-xs text-muted-foreground">{title.id}</TableCell>
                 <TableCell className="font-medium">{title.title}</TableCell>
                 <TableCell>{title.person_name}</TableCell>
                 <TableCell>{title.university}</TableCell>

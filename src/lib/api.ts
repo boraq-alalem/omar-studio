@@ -179,32 +179,44 @@ export const restoreArchivedThesis = (id: number) => fetchApiBoth<RestoreArchive
 export const permanentlyDeleteThesis = (id: number) => fetchApiBoth<DeleteThesisResponse>(`/archived-theses/${id}`, { method: 'DELETE' });
 
 // 6. Reserved Titles
-export const getLatestReservedTitles = () => fetchApiBoth<ReservedThesisTitle[]>('/reserved-thesis-titles-latest');
-export const getLatestReservedTitlesGuests = () => fetchApiBoth<ReservedThesisTitleGuest[]>('/reserved-thesis-titles-latest-guests');
+export const getLatestReservedTitles = () => {
+  const url = `${EXTERNAL_LINKS.API_BASE_URL_PROD}reserved-thesis-titles-latest`;
+  return fetch(url, { headers: { 'Accept': 'application/json' } }).then(res => res.json());
+};
+export const getLatestReservedTitlesGuests = () => fetchApiBoth<ReservedThesisTitleGuest[]>(
+  '/reserved-thesis-titles-latest-guests'
+);
 
 export const addReservedTitle = (data: Omit<ReservedThesisTitle, 'id'>) => {
-  // API doc says params, but for POST this should be body. Assuming URL encoded form data or JSON.
-  // For simplicity, let's use URLSearchParams which results in x-www-form-urlencoded
   const body = new URLSearchParams(data as any);
-  return fetchApiBoth<AddReservedTitleResponse>('/reserved-thesis-titles', {
+  const url = `${EXTERNAL_LINKS.API_BASE_URL_PROD}reserved-thesis-titles`;
+  return fetch(url, {
     method: 'POST',
     body: body,
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-  });
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' }
+  }).then(res => res.json());
 };
 
 export const updateReservedTitle = (id: number, data: Omit<ReservedThesisTitle, 'id'>) => {
-  // API doc says params, but for PUT this should be body.
   const body = new URLSearchParams(data as any);
-  return fetchApiBoth<UpdateReservedTitleResponse>(`/reserved-thesis-titles/${id}`, {
+  const url = `${EXTERNAL_LINKS.API_BASE_URL_PROD}reserved-thesis-titles/${id}`;
+  return fetch(url, {
     method: 'PUT',
     body: body,
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-  });
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' }
+  }).then(res => res.json());
 };
 
-export const deleteReservedTitle = (id: number) => fetchApiBoth<DeleteReservedTitleResponse>(`/reserved-thesis-titles/${id}`, { method: 'DELETE' });
-export const searchReservedTitles = (query: string) => fetchApiBoth<ReservedThesisTitle[]>(`/reserved-thesis-titles-search?q=${encodeURIComponent(query)}`);
+export const deleteReservedTitle = (id: number) => {
+  const url = `${EXTERNAL_LINKS.API_BASE_URL_PROD}reserved-thesis-titles/${id}`;
+  return fetch(url, { method: 'DELETE', headers: { 'Accept': 'application/json' } }).then(res => res.json());
+};
+
+export const searchReservedTitles = (query: string) => {
+  const url = `${EXTERNAL_LINKS.API_BASE_URL_PROD}reserved-thesis-titles-search?q=${encodeURIComponent(query)}`;
+  return fetch(url, { headers: { 'Accept': 'application/json' } })
+    .then(res => res.json());
+};
 export const searchReservedTitlesGuests = (query: string) => fetchApiBoth<ReservedThesisTitleGuest[]>(`/reserved-thesis-titles-search-guests?q=${encodeURIComponent(query)}`);
 
 // 7. Check Thesis Title Exists
@@ -238,6 +250,32 @@ export async function checkThesisTitleExists(title: string): Promise<boolean> {
     return false;
   }));
   return results.some(Boolean);
+}
+
+/**
+ * يتحقق من وجود عنوان محجوز في الاستضافة فقط.
+ * يعرض Toast إذا كان العنوان موجود.
+ * يرجع true إذا كان العنوان موجود، false إذا لم يوجد.
+ */
+export async function checkReservedTitleExists(title: string): Promise<boolean> {
+  try {
+    const url = `${EXTERNAL_LINKS.API_BASE_URL_PROD}reserved-thesis-titles-search?q=${encodeURIComponent(title)}`;
+    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        toast({
+          title: 'تنبيه',
+          description: 'العنوان موجود بالفعل',
+          variant: 'destructive',
+        });
+        return true;
+      }
+    }
+  } catch {
+    // تجاهل أخطاء الاتصال
+  }
+  return false;
 }
 
 // تقليص PDF إلى 30 صفحة للاستضافة

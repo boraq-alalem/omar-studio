@@ -6,52 +6,40 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Edit, Trash2, PlusCircle, UsersRound, Loader2 } from 'lucide-react';
 import type { User } from '@/types/users';
-import { getAllUsers, deleteUser as apiDeleteUser } from '@/lib/authService';
 import { useToast } from '@/hooks/use-toast';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { UserForm } from '@/components/users/UserForm';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 
 export function UsersClientPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isUserFormOpen, setIsUserFormOpen] = useState(false);
   const { toast } = useToast();
-  const { currentUser } = useAuth();
-
-  const fetchUsers = async () => {
-    setIsLoading(true);
-    try {
-      const fetchedUsers = await getAllUsers();
-      setUsers(fetchedUsers);
-    } catch (error) {
-      toast({ title: "خطأ", description: "فشل تحميل قائمة المستخدمين.", variant: "destructive" });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const { apiUser, isAuthenticated } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const handleDelete = async (userId: number) => {
-    setIsSubmitting(true);
-    try {
-      await apiDeleteUser(userId);
-      setUsers(prevUsers => prevUsers.filter(user => user.id !== userId));
-      toast({ title: "نجاح", description: "تم حذف المستخدم بنجاح." });
-    } catch (error) {
-      const err = error as Error;
-      toast({ title: "خطأ في الحذف", description: err.message || "لم نتمكن من حذف المستخدم.", variant: "destructive" });
-    } finally {
-      setIsSubmitting(false);
+    if (!isAuthenticated) {
+      router.push('/login');
+      return;
     }
+    
+    // For now, we'll show a placeholder since the API doesn't have a users list endpoint
+    setIsLoading(false);
+  }, [isAuthenticated, router]);
+
+  // Delete functionality not implemented yet
+  const handleDelete = async (userId: number) => {
+    toast({ 
+      title: "تنبيه", 
+      description: "حذف المستخدمين غير متاح حالياً.", 
+      variant: "destructive" 
+    });
   };
   
   const openAddUserDialog = () => {
@@ -67,10 +55,17 @@ export function UsersClientPage() {
   const onUserFormSubmitSuccess = () => {
     setIsUserFormOpen(false);
     setSelectedUser(null);
-    fetchUsers(); // Refresh the list
+    // Refresh would go here when API supports user listing
   };
 
-  const canManageUsers = useMemo(() => currentUser?.permissions.includes('manage_users'), [currentUser]);
+  const canManageUsers = useMemo(() => 
+    apiUser?.permissions.includes('إضافة مستخدمين'), 
+    [apiUser]
+  );
+
+  if (!isAuthenticated) {
+    return null; // Will redirect to login
+  }
 
   if (!canManageUsers && !isLoading) {
     return (
@@ -110,7 +105,7 @@ export function UsersClientPage() {
       <div className="flex justify-end">
         <Dialog open={isUserFormOpen} onOpenChange={setIsUserFormOpen}>
           <DialogTrigger asChild>
-            <Button onClick={openAddUserDialog} disabled={!canManageUsers}>
+            <Button onClick={openAddUserDialog} disabled={!canManageUsers || isLoading}>
               <PlusCircle className="ml-2 h-5 w-5" />
               إضافة مستخدم جديد
             </Button>
@@ -130,65 +125,11 @@ export function UsersClientPage() {
         </Dialog>
       </div>
 
-      {users.length === 0 && !isLoading ? (
-        <div className="text-center py-10 text-muted-foreground">
-          <UsersRound size={48} className="mx-auto mb-2" />
-          <p>لا يوجد مستخدمون لعرضهم. قم بإضافة مستخدم جديد.</p>
-        </div>
-      ) : (
-        <Card className="shadow-lg">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>#</TableHead>
-                <TableHead>اسم المستخدم</TableHead>
-                <TableHead>الاسم الكامل</TableHead>
-                <TableHead>الدور</TableHead>
-                <TableHead>الإجراءات</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell>{user.id}</TableCell>
-                  <TableCell className="font-medium">{user.username}</TableCell>
-                  <TableCell>{user.fullName || '-'}</TableCell>
-                  <TableCell>{user.role}</TableCell>
-                  <TableCell className="space-x-1 whitespace-nowrap">
-                    <Button variant="ghost" size="icon" onClick={() => openEditUserDialog(user)} disabled={!canManageUsers || isSubmitting} aria-label="Edit User">
-                      <Edit className="h-4 w-4 text-yellow-500" />
-                    </Button>
-                    {currentUser?.id !== user.id && ( // Prevent admin from deleting themselves
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" disabled={!canManageUsers || isSubmitting} aria-label="Delete User">
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>هل أنت متأكد من رغبتك في حذف هذا المستخدم؟</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              سيتم حذف المستخدم ({user.username}) نهائياً ولا يمكن التراجع عن هذا الإجراء.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDelete(user.id)} className="bg-destructive hover:bg-destructive/90" disabled={isSubmitting}>
-                              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                              حذف
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Card>
-      )}
+      <div className="text-center py-10 text-muted-foreground">
+        <UsersRound size={48} className="mx-auto mb-2" />
+        <p>قائمة المستخدمين ستظهر هنا بعد تطبيق API عرض المستخدمين.</p>
+        <p className="text-sm mt-2">يمكنك إضافة مستخدمين جدد باستخدام الزر أعلاه.</p>
+      </div>
     </div>
   );
 }

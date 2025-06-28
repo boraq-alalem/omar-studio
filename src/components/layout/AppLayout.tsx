@@ -26,7 +26,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 function AppHeader() {
   const { toggleSidebar, isMobile } = useSidebar();
   const { theme, setTheme } = useTheme();
-  const { currentUser, logout, isLoading } = useAuth(); // Get currentUser and logout from useAuth
+  const { currentUser, apiUser, logout, isLoading } = useAuth(); // Get currentUser and logout from useAuth
   const router = useRouter();
 
   const handleLogout = async () => {
@@ -35,7 +35,7 @@ function AppHeader() {
     router.refresh(); // Refresh to reflect logged out state
   };
   
-  const userDisplayName = currentUser?.fullName || currentUser?.username || 'المستخدم';
+  const userDisplayName = apiUser?.name || currentUser?.fullName || currentUser?.username || 'المستخدم';
 
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -59,7 +59,7 @@ function AppHeader() {
           </Button>
           {isLoading ? (
             <Skeleton className="h-8 w-24 rounded-md" />
-          ) : currentUser ? (
+          ) : (currentUser || apiUser) ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex items-center gap-2 px-2 md:px-3">
@@ -70,7 +70,9 @@ function AppHeader() {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuItem disabled className="flex flex-col items-start !opacity-100">
                   <span className="font-semibold">{userDisplayName}</span>
-                  <span className="text-xs text-muted-foreground">{currentUser.role}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {apiUser?.roles?.[0]?.name || currentUser?.role || 'مستخدم'}
+                  </span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>

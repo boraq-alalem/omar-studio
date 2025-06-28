@@ -3,23 +3,43 @@
 
 import type React from 'react';
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import type { User } from '@/types/users';
+import { useRouter } from 'next/navigation';
+import type { User, ApiUser } from '@/types/users';
 import { getCurrentUser as apiGetCurrentUser, logout as apiLogout } from '@/lib/authService';
-// Skeleton import is no longer needed here directly for a full page loader
-// import { Skeleton } from '@/components/ui/skeleton';
 
 interface AuthContextType {
   currentUser: User | null;
+  apiUser: ApiUser | null;
   isLoading: boolean;
+  isAuthenticated: boolean;
   refetchUser: () => Promise<void>;
   logout: () => Promise<void>;
+  setApiUser: (user: ApiUser | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true); // isLoading is true initially
+  const [apiUser, setApiUser] = useState<ApiUser | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
+
+  // Load user from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('currentApiUser');
+      if (stored) {
+        try {
+          const user = JSON.parse(stored);
+          setApiUser(user);
+        } catch (e) {
+          console.error('Failed to parse stored user:', e);
+        }
+      }
+      setIsLoading(false);
+    }
+  }, []);
 
   const refetchUser = useCallback(async () => {
     setIsLoading(true);
@@ -29,6 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error("Failed to fetch current user", error);
       setCurrentUser(null);
+      setApiUser(null);
     } finally {
       setIsLoading(false);
     }
@@ -36,26 +57,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     await apiLogout();
-    setCurrentUser(null); // Clear user from context
-    // Potentially redirect to login page: router.push('/login');
-    // For now, this mock logout just clears the user.
+    setCurrentUser(null);
+    setApiUser(null);
+    router.push('/login');
+  }, [router]);
+
+  const setApiUserAndStore = useCallback((user: ApiUser | null) => {
+    setApiUser(user);
+    if (typeof window !== 'undefined') {
+      if (user) {
+        localStorage.setItem('currentApiUser', JSON.stringify(user));
+      } else {
+        localStorage.removeItem('currentApiUser');
+      }
+    }
   }, []);
 
-  useEffect(() => {
-    // This effect runs on the client after the component mounts.
-    // `isLoading` is true initially, and set to false after refetchUser completes.
-    refetchUser();
-  }, [refetchUser]);
+  // Remove the automatic refetch on mount since we're loading from localStorage
 
-  // Removed the conditional full-page loader that caused hydration errors.
-  // The isLoading state is provided via context, and consuming components
-  // can decide how to display loading states.
-  // The server will render children with isLoading=true, and the client will initially
-  // also render children with isLoading=true, avoiding a mismatch.
-  // The useEffect will then trigger updates on the client.
+  const isAuthenticated = !!currentUser || !!apiUser;
 
   return (
-    <AuthContext.Provider value={{ currentUser, isLoading, refetchUser, logout }}>
+    <AuthContext.Provider value={{ 
+      currentUser, 
+      apiUser, 
+      isLoading, 
+      isAuthenticated,
+      refetchUser, 
+      logout,
+      setApiUser: setApiUserAndStore
+    }}>
       {children}
     </AuthContext.Provider>
   );

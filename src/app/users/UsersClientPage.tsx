@@ -23,18 +23,18 @@ export function UsersClientPage() {
   const [isUserFormOpen, setIsUserFormOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState<number | null>(null);
   const { toast } = useToast();
-  const { apiUser, isAuthenticated, token } = useAuth();
+  const { apiUser, isAuthenticated, localToken, remoteToken } = useAuth();
   const router = useRouter();
 
   const fetchUsers = async () => {
-    if (!token) {
+    if (!localToken || !remoteToken) {
       setIsLoading(false);
       return;
     }
     
     try {
       setIsLoading(true);
-      const usersData = await getUsersWithoutSuperAdmin(token);
+      const usersData = await getUsersWithoutSuperAdmin(localToken, remoteToken);
       setUsers(usersData);
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -60,14 +60,14 @@ export function UsersClientPage() {
     }, 100);
     
     return () => clearTimeout(timer);
-  }, [isAuthenticated, router, token]);
+  }, [isAuthenticated, router, localToken, remoteToken]);
 
   const handleDelete = async (userId: number) => {
-    if (!token) return;
+    if (!localToken || !remoteToken) return;
     
     try {
       setIsDeleting(userId);
-      await deleteUser(userId, token);
+      await deleteUser(userId, localToken, remoteToken);
       toast({
         title: "نجح",
         description: "تم حذف المستخدم بنجاح",

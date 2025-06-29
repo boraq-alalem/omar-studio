@@ -40,7 +40,7 @@ interface UserFormProps {
 
 export function UserForm({ initialData, onSuccess, onCancel }: UserFormProps) {
   const { toast } = useToast();
-  const { token } = useAuth();
+  const { localToken, remoteToken } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [roles, setRoles] = useState<ApiRole[]>([]);
   const [isLoadingRoles, setIsLoadingRoles] = useState(true);
@@ -76,10 +76,10 @@ export function UserForm({ initialData, onSuccess, onCancel }: UserFormProps) {
   }, [toast]);
 
   async function onSubmit(data: CreateUserFormValues | UpdateUserFormValues) {
-    if (!token) {
+    if (!localToken || !remoteToken) {
       toast({
         title: "خطأ",
-        description: "لم يتم العثور على رمز المصادقة",
+        description: "لم يتم العثور على رموز المصادقة",
         variant: "destructive",
       });
       return;
@@ -102,7 +102,7 @@ export function UserForm({ initialData, onSuccess, onCancel }: UserFormProps) {
           return;
         }
         
-        await updateUser(initialData.id, updateData, token);
+        await updateUser(initialData.id, updateData, localToken, remoteToken);
         toast({ 
           title: "نجاح", 
           description: "تم تعديل بيانات المستخدم بنجاح" 
@@ -117,9 +117,19 @@ export function UserForm({ initialData, onSuccess, onCancel }: UserFormProps) {
         };
         
         const result = await addUser(userData);
+        
+        let successMessage = 'تمت إضافة المستخدم بنجاح';
+        if (result.local_user && result.remote_user) {
+          successMessage += ' في كلا الخادمين';
+        } else if (result.local_user) {
+          successMessage += ' في الخادم المحلي فقط';
+        } else if (result.remote_user) {
+          successMessage += ' في الخادم الخارجي فقط';
+        }
+        
         toast({ 
           title: "نجاح", 
-          description: `تمت إضافة المستخدم بنجاح` 
+          description: successMessage
         });
       }
       

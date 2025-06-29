@@ -86,27 +86,47 @@ async function fetchApi<T>(endpoint: string, options: RequestInit = {}, useLocal
 // Login to both servers
 export async function login(email: string, password: string): Promise<LoginResponse> {
   const loginData = { email, password };
+  let localSuccess = false;
+  let remoteSuccess = false;
+  let localResponse: LoginResponse | null = null;
+  let remoteResponse: LoginResponse | null = null;
   
   try {
     // Login to local server
-    const localResponse = await fetchApi<LoginResponse>('/login', {
+    localResponse = await fetchApi<LoginResponse>('/login', {
       method: 'POST',
       body: JSON.stringify(loginData),
     }, true);
     setLocalToken(localResponse.access_token);
-    
+    localSuccess = true;
+  } catch (error) {
+    console.log('Failed to login to local server:', error);
+  }
+  
+  try {
     // Login to remote server
-    const remoteResponse = await fetchApi<LoginResponse>('/login', {
+    remoteResponse = await fetchApi<LoginResponse>('/login', {
       method: 'POST',
       body: JSON.stringify(loginData),
     }, false);
     setRemoteToken(remoteResponse.access_token);
-    
-    setCurrentApiUser(localResponse.user);
-    return localResponse;
+    remoteSuccess = true;
   } catch (error) {
-    throw new Error('فشل تسجيل الدخول');
+    console.log('Failed to login to remote server:', error);
   }
+  
+  // Both must succeed to allow login
+  if (localSuccess && remoteSuccess) {
+    setCurrentApiUser(localResponse!.user);
+    return localResponse!;
+  }
+  
+  // Clear any stored tokens if login failed
+  setLocalToken(null);
+  setRemoteToken(null);
+  setCurrentApiUser(null);
+  
+  throw new Error('فشل تسجيل الدخول في أحد الخوادم أو كليهما');
 }
 
 // Get all roles with permissions
@@ -138,6 +158,8 @@ export async function getAllUsers(): Promise<User[]> {
 // Add user to both servers
 export async function addUser(userData: CreateUserRequest): Promise<{ local_user: any, remote_user: any, uuid_stored: boolean }> {
   const results = { local_user: null, remote_user: null, uuid_stored: false };
+  let localSuccess = false;
+  let remoteSuccess = false;
   
   try {
     // Add to local server
@@ -146,24 +168,39 @@ export async function addUser(userData: CreateUserRequest): Promise<{ local_user
       body: JSON.stringify(userData),
     }, true);
     results.local_user = localResponse.user;
-    
+    localSuccess = true;
+  } catch (error) {
+    console.log('Failed to add user to local server:', error);
+  }
+  
+  try {
     // Add to remote server
     const remoteResponse = await fetchApi<CreateUserResponse>('/users', {
       method: 'POST',
       body: JSON.stringify(userData),
     }, false);
     results.remote_user = remoteResponse.user;
-    
-    // Store UUIDs
-    if (results.local_user?.id && results.remote_user?.id) {
+    remoteSuccess = true;
+  } catch (error) {
+    console.log('Failed to add user to remote server:', error);
+  }
+  
+  // Store UUIDs if both succeeded
+  if (results.local_user?.id && results.remote_user?.id) {
+    try {
       await storeUserUuids(results.local_user.id, results.remote_user.id);
       results.uuid_stored = true;
+    } catch (error) {
+      console.log('Failed to store UUIDs:', error);
     }
-    
-    return results;
-  } catch (error: any) {
-    throw new Error(error.message || 'فشل إضافة المستخدم');
   }
+  
+  // Both must succeed for user creation
+  if (localSuccess && remoteSuccess) {
+    return results;
+  }
+  
+  throw new Error('فشل إضافة المستخدم في أحد الخوادم أو كليهما');
 }
 
 // Store user UUIDs in both servers

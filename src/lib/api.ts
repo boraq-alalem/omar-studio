@@ -595,18 +595,18 @@ export async function deleteUuidsFromBothServers(id_local: number): Promise<void
 }
 
 // جلب المستخدمين بدون super admin
-export const getUsersWithoutSuperAdmin = async (token: string) => {
-  const urls = [
-    EXTERNAL_LINKS.API_BASE_URL_LOCAL,
-    EXTERNAL_LINKS.API_BASE_URL_PROD
+export const getUsersWithoutSuperAdmin = async (localToken: string, remoteToken: string) => {
+  const servers = [
+    { url: EXTERNAL_LINKS.API_BASE_URL_LOCAL, token: localToken, name: 'المحلي' },
+    { url: EXTERNAL_LINKS.API_BASE_URL_PROD, token: remoteToken, name: 'الخارجي' }
   ];
   
-  for (const baseUrl of urls) {
+  for (const server of servers) {
     try {
-      const url = `${baseUrl.replace(/\/$/, '')}/users-without-super-admin`;
+      const url = `${server.url.replace(/\/$/, '')}/users-without-super-admin`;
       const response = await fetch(url, {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${server.token}`,
           'Accept': 'application/json',
         },
       });
@@ -615,7 +615,7 @@ export const getUsersWithoutSuperAdmin = async (token: string) => {
         return await response.json();
       }
     } catch (error) {
-      console.log(`Failed to fetch from ${baseUrl}:`, error);
+      console.log(`Failed to fetch from ${server.name}:`, error);
     }
   }
   
@@ -623,19 +623,22 @@ export const getUsersWithoutSuperAdmin = async (token: string) => {
 };
 
 // تعديل مستخدم
-export const updateUser = async (userId: number, userData: any, token: string) => {
-  const urls = [
-    EXTERNAL_LINKS.API_BASE_URL_LOCAL,
-    EXTERNAL_LINKS.API_BASE_URL_PROD
+export const updateUser = async (userId: number, userData: any, localToken: string, remoteToken: string) => {
+  const servers = [
+    { url: EXTERNAL_LINKS.API_BASE_URL_LOCAL, token: localToken, name: 'المحلي' },
+    { url: EXTERNAL_LINKS.API_BASE_URL_PROD, token: remoteToken, name: 'الخارجي' }
   ];
   
-  for (const baseUrl of urls) {
+  let successCount = 0;
+  let lastError = null;
+  
+  for (const server of servers) {
     try {
-      const url = `${baseUrl.replace(/\/$/, '')}/users/${userId}`;
+      const url = `${server.url.replace(/\/$/, '')}/users/${userId}`;
       const response = await fetch(url, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${server.token}`,
           'Accept': 'application/json',
           'Content-Type': 'application/json',
         },
@@ -643,45 +646,56 @@ export const updateUser = async (userId: number, userData: any, token: string) =
       });
       
       if (response.ok) {
-        return await response.json();
+        successCount++;
+        if (successCount === 1) {
+          // Return response from first successful server
+          return await response.json();
+        }
       } else if (response.status === 422) {
         const errorData = await response.json();
         throw errorData;
       }
     } catch (error) {
       if (error.errors) throw error; // Validation errors
-      console.log(`Failed to update from ${baseUrl}:`, error);
+      console.log(`Failed to update from ${server.name}:`, error);
+      lastError = error;
     }
   }
   
-  throw new Error('فشل في تعديل المستخدم من جميع الخوادم');
+  if (successCount === 0) {
+    throw new Error('فشل في تعديل المستخدم في جميع الخوادم');
+  }
 };
 
 // حذف مستخدم
-export const deleteUser = async (userId: number, token: string) => {
-  const urls = [
-    EXTERNAL_LINKS.API_BASE_URL_LOCAL,
-    EXTERNAL_LINKS.API_BASE_URL_PROD
+export const deleteUser = async (userId: number, localToken: string, remoteToken: string) => {
+  const servers = [
+    { url: EXTERNAL_LINKS.API_BASE_URL_LOCAL, token: localToken, name: 'المحلي' },
+    { url: EXTERNAL_LINKS.API_BASE_URL_PROD, token: remoteToken, name: 'الخارجي' }
   ];
   
-  for (const baseUrl of urls) {
+  let successCount = 0;
+  
+  for (const server of servers) {
     try {
-      const url = `${baseUrl.replace(/\/$/, '')}/users/${userId}`;
+      const url = `${server.url.replace(/\/$/, '')}/users/${userId}`;
       const response = await fetch(url, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${server.token}`,
           'Accept': 'application/json',
         },
       });
       
       if (response.ok) {
-        return response.status === 204 ? undefined : await response.json();
+        successCount++;
       }
     } catch (error) {
-      console.log(`Failed to delete from ${baseUrl}:`, error);
+      console.log(`Failed to delete from ${server.name}:`, error);
     }
   }
   
-  throw new Error('فشل في حذف المستخدم من جميع الخوادم');
+  if (successCount === 0) {
+    throw new Error('فشل في حذف المستخدم من جميع الخوادم');
+  }
 };

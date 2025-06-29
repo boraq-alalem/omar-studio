@@ -46,53 +46,116 @@ async function fetchApi<T>(endpoint: string, options: RequestInit = {}, useLocal
   return response.json();
 }
 
-// Check if university ID exists in both servers
-async function checkUniversityIdExists(id: number): Promise<string | null> {
+// Check if university ID exists in both servers - returns array of servers where it exists
+async function checkUniversityIdExists(id: number): Promise<string[]> {
   const servers = [
     { name: 'الخادم المحلي', useLocal: true },
     { name: 'الاستضافة', useLocal: false }
   ];
 
+  const existsIn = [];
   for (const server of servers) {
     try {
       const result = await fetchApi<any[]>(`/universities/search?id=${id}`, {}, server.useLocal);
       if (result && result.length > 0) {
-        return server.name;
+        existsIn.push(server.name);
       }
     } catch (error) {
       // Ignore network errors, continue checking
     }
   }
-  return null;
+  return existsIn;
 }
 
-// Check if specialization ID exists in both servers
-async function checkSpecializationIdExists(id: number): Promise<string | null> {
+// Check if university name exists in both servers - returns array of servers where it exists
+async function checkUniversityNameExists(name: string): Promise<string[]> {
   const servers = [
     { name: 'الخادم المحلي', useLocal: true },
     { name: 'الاستضافة', useLocal: false }
   ];
 
+  const existsIn = [];
   for (const server of servers) {
     try {
-      const result = await fetchApi<any[]>(`/specializations/search?id=${id}`, {}, server.useLocal);
+      const result = await fetchApi<any[]>(`/universities/search?name=${encodeURIComponent(name)}`, {}, server.useLocal);
       if (result && result.length > 0) {
-        return server.name;
+        existsIn.push(server.name);
       }
     } catch (error) {
       // Ignore network errors, continue checking
     }
   }
-  return null;
+  return existsIn;
+}
+
+// Check if specialization ID exists in both servers - returns array of servers where it exists
+async function checkSpecializationIdExists(id: number): Promise<string[]> {
+  const servers = [
+    { name: 'الخادم المحلي', useLocal: true },
+    { name: 'الاستضافة', useLocal: false }
+  ];
+
+  const existsIn = [];
+  for (const server of servers) {
+    try {
+      const result = await fetchApi<any[]>(`/specializations/search?id=${id}`, {}, server.useLocal);
+      if (result && result.length > 0) {
+        existsIn.push(server.name);
+      }
+    } catch (error) {
+      // Ignore network errors, continue checking
+    }
+  }
+  return existsIn;
+}
+
+// Check if specialization name exists in both servers - returns array of servers where it exists
+async function checkSpecializationNameExists(name: string): Promise<string[]> {
+  const servers = [
+    { name: 'الخادم المحلي', useLocal: true },
+    { name: 'الاستضافة', useLocal: false }
+  ];
+
+  const existsIn = [];
+  for (const server of servers) {
+    try {
+      const result = await fetchApi<any[]>(`/specializations/search?name=${encodeURIComponent(name)}`, {}, server.useLocal);
+      if (result && result.length > 0) {
+        existsIn.push(server.name);
+      }
+    } catch (error) {
+      // Ignore network errors, continue checking
+    }
+  }
+  return existsIn;
 }
 
 // Add university to both servers
 export async function addUniversityToBothServers(data: UniversityData): Promise<void> {
-  // First check if ID exists
-  const existsIn = await checkUniversityIdExists(data.id);
-  if (existsIn) {
-    throw new Error(`المعرف موجود بالفعل في ${existsIn}`);
+  console.log('🔍 بدء التحقق من الجامعة:', data);
+  
+  // Check all 4 conditions before proceeding
+  const [idExistsIn, nameExistsIn] = await Promise.all([
+    checkUniversityIdExists(data.id),
+    checkUniversityNameExists(data.name)
+  ]);
+  
+  console.log('📊 نتائج التحقق:');
+  console.log('- المعرف موجود في:', idExistsIn);
+  console.log('- الاسم موجود في:', nameExistsIn);
+  
+  // If ANY check fails, stop completely - no additions to any server
+  if (idExistsIn.length > 0) {
+    console.log('❌ توقف: المعرف موجود');
+    throw new Error(`المعرف موجود بالفعل في ${idExistsIn[0]}`);
   }
+  
+  if (nameExistsIn.length > 0) {
+    console.log('❌ توقف: الاسم موجود');
+    throw new Error(`الاسم موجود بالفعل في ${nameExistsIn[0]}`);
+  }
+  
+  console.log('✅ التحقق مكتمل - بدء الإضافة');
 
   const servers = [
     { name: 'الخادم المحلي', useLocal: true },
@@ -121,11 +184,30 @@ export async function addUniversityToBothServers(data: UniversityData): Promise<
 
 // Add specialization to both servers
 export async function addSpecializationToBothServers(data: SpecializationData): Promise<void> {
-  // First check if ID exists
-  const existsIn = await checkSpecializationIdExists(data.id);
-  if (existsIn) {
-    throw new Error(`المعرف موجود بالفعل في ${existsIn}`);
+  console.log('🔍 بدء التحقق من التخصص:', data);
+  
+  // Check all 4 conditions before proceeding
+  const [idExistsIn, nameExistsIn] = await Promise.all([
+    checkSpecializationIdExists(data.id),
+    checkSpecializationNameExists(data.name)
+  ]);
+  
+  console.log('📊 نتائج التحقق:');
+  console.log('- المعرف موجود في:', idExistsIn);
+  console.log('- الاسم موجود في:', nameExistsIn);
+  
+  // If ANY check fails, stop completely - no additions to any server
+  if (idExistsIn.length > 0) {
+    console.log('❌ توقف: المعرف موجود');
+    throw new Error(`المعرف موجود بالفعل في ${idExistsIn[0]}`);
   }
+  
+  if (nameExistsIn.length > 0) {
+    console.log('❌ توقف: الاسم موجود');
+    throw new Error(`الاسم موجود بالفعل في ${nameExistsIn[0]}`);
+  }
+  
+  console.log('✅ التحقق مكتمل - بدء الإضافة');
 
   const servers = [
     { name: 'الخادم المحلي', useLocal: true },

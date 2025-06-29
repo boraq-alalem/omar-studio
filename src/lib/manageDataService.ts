@@ -182,6 +182,40 @@ export async function addUniversityToBothServers(data: UniversityData): Promise<
   }
 }
 
+// Get highest ID from both servers
+async function getHighestId(endpoint: string): Promise<number> {
+  const servers = [
+    { useLocal: true },
+    { useLocal: false }
+  ];
+
+  let highestId = 0;
+  for (const server of servers) {
+    try {
+      const result = await fetchApi<any[]>(endpoint, {}, server.useLocal);
+      if (result && Array.isArray(result) && result.length > 0) {
+        const maxId = Math.max(...result.map(item => item.id || 0));
+        if (maxId > highestId) {
+          highestId = maxId;
+        }
+      }
+    } catch (error) {
+      // Ignore network errors, continue checking
+    }
+  }
+  return highestId;
+}
+
+// Get highest university ID
+export async function getHighestUniversityId(): Promise<number> {
+  return getHighestId('/universities');
+}
+
+// Get highest specialization ID
+export async function getHighestSpecializationId(): Promise<number> {
+  return getHighestId('/specializations');
+}
+
 // Add specialization to both servers
 export async function addSpecializationToBothServers(data: SpecializationData): Promise<void> {
   console.log('🔍 بدء التحقق من التخصص:', data);

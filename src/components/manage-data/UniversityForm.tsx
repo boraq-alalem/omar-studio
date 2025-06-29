@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -9,7 +9,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from 'lucide-react';
-import { addUniversityToBothServers } from '@/lib/manageDataService';
+import { addUniversityToBothServers, getHighestUniversityId } from '@/lib/manageDataService';
 
 const universityFormSchema = z.object({
   id: z.number({ required_error: "المعرف مطلوب." }).min(1, { message: "المعرف يجب أن يكون أكبر من 0." }),
@@ -26,6 +26,22 @@ interface UniversityFormProps {
 export function UniversityForm({ onSuccess, onCancel }: UniversityFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [highestId, setHighestId] = useState<number>(0);
+  const [isLoadingHighestId, setIsLoadingHighestId] = useState(true);
+
+  useEffect(() => {
+    const fetchHighestId = async () => {
+      try {
+        const id = await getHighestUniversityId();
+        setHighestId(id);
+      } catch (error) {
+        console.error('Failed to fetch highest university ID:', error);
+      } finally {
+        setIsLoadingHighestId(false);
+      }
+    };
+    fetchHighestId();
+  }, []);
 
   const form = useForm<UniversityFormValues>({
     resolver: zodResolver(universityFormSchema),
@@ -69,11 +85,17 @@ export function UniversityForm({ onSuccess, onCancel }: UniversityFormProps) {
               <FormControl>
                 <Input 
                   type="number" 
-                  placeholder="مثال: 121" 
+                  placeholder={isLoadingHighestId ? "جاري التحميل..." : `أكبر معرف: ${highestId}`}
                   {...field}
                   onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                  disabled={isLoadingHighestId}
                 />
               </FormControl>
+              {!isLoadingHighestId && (
+                <p className="text-sm text-muted-foreground">
+                  أكبر معرف موجود حالياً: {highestId}
+                </p>
+              )}
               <FormMessage />
             </FormItem>
           )}

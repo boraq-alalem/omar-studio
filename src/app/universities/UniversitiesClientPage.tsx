@@ -68,11 +68,7 @@ export function UniversitiesClientPage({ initialUniversities }: UniversitiesClie
     setIsLoadingUniversities(true);
     try {
         const updatedUniversities = await getUniversitiesWithSpecializationsAdmin();
-        // Update both initial (if needed for reset) and displayed
-        // For simplicity, we assume initialUniversities prop is the source of truth for full list
         setDisplayedUniversities(updatedUniversities || initialUniversities || []);
-        // If filters were active, re-apply them or clear them based on desired UX
-        // For now, just refreshing shows all; user can re-filter.
         setSelectedFilterValue(''); 
     } catch (error) {
         toast({ title: "خطأ", description: "فشل تحديث قائمة الجامعات.", variant: "destructive" });

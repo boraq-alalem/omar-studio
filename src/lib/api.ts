@@ -66,7 +66,6 @@ async function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise
 }
 
 async function fetchApiBoth<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const { setError } = require('@/contexts/ServerErrorContext');
   const urls = [
     EXTERNAL_LINKS.API_BASE_URL_LOCAL,
     EXTERNAL_LINKS.API_BASE_URL_PROD
@@ -74,12 +73,24 @@ async function fetchApiBoth<T>(endpoint: string, options: RequestInit = {}): Pro
   const defaultOptions: RequestInit = {
     headers: {
       'Accept': 'application/json',
+      'Content-Type': 'application/json',
     },
   };
+  
+  // Merge headers properly
+  const mergedOptions = {
+    ...defaultOptions,
+    ...options,
+    headers: {
+      ...defaultOptions.headers,
+      ...options.headers,
+    },
+  };
+  
   const fetches = urls.map(base => {
     const url = `${base.replace(/\/$/, '')}${endpoint}`;
     console.log('Fetching from:', url);
-    return fetch(url, { ...defaultOptions, ...options });
+    return fetch(url, mergedOptions);
   });
   const results = await Promise.allSettled(fetches);
   let allFailed = true;
@@ -105,21 +116,11 @@ async function fetchApiBoth<T>(endpoint: string, options: RequestInit = {}): Pro
   
   if (allFailed) {
     console.error('All API requests failed. Last error:', lastError);
-    if (typeof window !== 'undefined') {
-      setTimeout(() => {
-        window.dispatchEvent(new CustomEvent('server-error', { detail: 'فشل بالاتصال بالخادم المحلي أو الاستضافة' }));
-      }, 0);
-    }
     throw new Error(`Both API requests failed. Last error: ${lastError}`);
   }
 }
 
-if (typeof window !== 'undefined') {
-  window.addEventListener('server-error', (e: any) => {
-    const { setError } = require('@/contexts/ServerErrorContext');
-    setError(e.detail || 'فشل بالاتصال بالخادم المحلي');
-  });
-}
+// Remove problematic event listener
 
 // 1. General Statistics
 export const getGeneralStats = () => fetchApiBoth<GeneralStats>('/stats');
@@ -159,16 +160,18 @@ export const getUniversitiesWithSpecializationsGuests = () => fetchApiBoth<Unive
 export const searchUniversities = (name: string) => fetchApiBoth<University[]>(`/universities/search?name=${encodeURIComponent(name)}`);
 
 export const addSpecializationToUniversity = (universityId: number, data: { specialization_name: string } | { specialization_id: number }) => {
-  // Assuming the API expects specialization_name for new, or specialization_id for existing.
-  // The API doc is vague; let's assume it's { specialization_name: "New Spec" }
-  const formData = new FormData();
-  if ('specialization_name' in data) {
-    formData.append('specialization_name', data.specialization_name);
-  } else {
-    formData.append('specialization_id', data.specialization_id.toString());
-  }
-  // The API spec body for 4.4 is "غير محدد". Sending as FormData for now.
-  return fetchApiBoth<AddSpecializationToUniversityResponse>(`/universities/${universityId}/add-specialization`, { method: 'POST', body: formData });
+  const requestBody = {
+    ...data,
+    university_id: universityId
+  };
+  
+  return fetchApiBoth<AddSpecializationToUniversityResponse>(`/universities/${universityId}/add-specialization`, { 
+    method: 'POST', 
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(requestBody)
+  });
 };
 
 

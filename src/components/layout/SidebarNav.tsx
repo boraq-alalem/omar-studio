@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, BookMarked, Archive, Building2, FileLock2, Cog, UsersRound } from 'lucide-react'; // Added UsersRound
+import { LayoutDashboard, BookMarked, Archive, Building2, FileLock2, Cog, UsersRound } from 'lucide-react';
 import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,6 +14,7 @@ const navItems = [
   { href: '/theses', label: 'الرسائل', icon: BookMarked, permission: 'الرسائل' },
   { href: '/archive', label: 'الأرشيف', icon: Archive, permission: 'الرسائل' },
   { href: '/universities', label: 'الجامعات والتخصصات', icon: Building2, permission: 'إضافة الجامعات والتعديل عليها' },
+  { href: '/manage-data', label: 'إدارة البيانات', icon: Cog, permission: 'إضافة الجامعات والتعديل عليها' },
   { href: '/reserved-titles', label: 'العناوين المحجوزة', icon: FileLock2, permission: 'العناوين محجوزة' },
   { href: '/users', label: 'إدارة المستخدمين', icon: UsersRound, permission: 'إضافة مستخدمين' },
 ];

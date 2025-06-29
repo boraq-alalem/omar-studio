@@ -20,6 +20,22 @@ export interface ApiUser {
   permissions: string[];
 }
 
+// User from users-without-super-admin endpoint
+export interface UserWithoutSuperAdmin {
+  id: number;
+  name: string;
+  email: string;
+  email_verified_at: string | null;
+  roles: {
+    id: number;
+    name: string;
+  }[];
+  permissions: {
+    id: number;
+    name: string;
+  }[];
+}
+
 // Login response type
 export interface LoginResponse {
   message: string;
@@ -44,6 +60,32 @@ export interface CreateUserResponse {
     email: string;
     id: number;
     roles: ApiRole[];
+  };
+}
+
+// Update user request
+export interface UpdateUserRequest {
+  name?: string;
+  email?: string;
+  role_id?: number;
+}
+
+// Update user response
+export interface UpdateUserResponse {
+  message: string;
+  user: {
+    id: number;
+    name: string;
+    email: string;
+    email_verified_at: string | null;
+    roles: {
+      id: number;
+      name: string;
+      pivot: {
+        user_id: number;
+        role_id: number;
+      };
+    }[];
   };
 }
 

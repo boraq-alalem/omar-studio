@@ -27,7 +27,7 @@ import { useServerError } from '@/contexts/ServerErrorContext';
 import { toast } from '@/hooks/use-toast';
 
 async function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const url = `${EXTERNAL_LINKS.API_BASE_URL_PROD}${endpoint}`;
+  const url = `${EXTERNAL_LINKS.API_BASE_URL_PROD.replace(/\/$/, '')}${endpoint}`;
   const defaultOptions: RequestInit = {
     headers: {
       'Accept': 'application/json',
@@ -593,3 +593,95 @@ export async function deleteUuidsFromBothServers(id_local: number): Promise<void
     }
   }));
 }
+
+// جلب المستخدمين بدون super admin
+export const getUsersWithoutSuperAdmin = async (token: string) => {
+  const urls = [
+    EXTERNAL_LINKS.API_BASE_URL_LOCAL,
+    EXTERNAL_LINKS.API_BASE_URL_PROD
+  ];
+  
+  for (const baseUrl of urls) {
+    try {
+      const url = `${baseUrl.replace(/\/$/, '')}/users-without-super-admin`;
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        return await response.json();
+      }
+    } catch (error) {
+      console.log(`Failed to fetch from ${baseUrl}:`, error);
+    }
+  }
+  
+  throw new Error('فشل في جلب المستخدمين من جميع الخوادم');
+};
+
+// تعديل مستخدم
+export const updateUser = async (userId: number, userData: any, token: string) => {
+  const urls = [
+    EXTERNAL_LINKS.API_BASE_URL_LOCAL,
+    EXTERNAL_LINKS.API_BASE_URL_PROD
+  ];
+  
+  for (const baseUrl of urls) {
+    try {
+      const url = `${baseUrl.replace(/\/$/, '')}/users/${userId}`;
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData),
+      });
+      
+      if (response.ok) {
+        return await response.json();
+      } else if (response.status === 422) {
+        const errorData = await response.json();
+        throw errorData;
+      }
+    } catch (error) {
+      if (error.errors) throw error; // Validation errors
+      console.log(`Failed to update from ${baseUrl}:`, error);
+    }
+  }
+  
+  throw new Error('فشل في تعديل المستخدم من جميع الخوادم');
+};
+
+// حذف مستخدم
+export const deleteUser = async (userId: number, token: string) => {
+  const urls = [
+    EXTERNAL_LINKS.API_BASE_URL_LOCAL,
+    EXTERNAL_LINKS.API_BASE_URL_PROD
+  ];
+  
+  for (const baseUrl of urls) {
+    try {
+      const url = `${baseUrl.replace(/\/$/, '')}/users/${userId}`;
+      const response = await fetch(url, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        return response.status === 204 ? undefined : await response.json();
+      }
+    } catch (error) {
+      console.log(`Failed to delete from ${baseUrl}:`, error);
+    }
+  }
+  
+  throw new Error('فشل في حذف المستخدم من جميع الخوادم');
+};

@@ -5,7 +5,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Edit, Trash2, PlusCircle, UsersRound, Loader2 } from 'lucide-react';
-import type { User } from '@/types/users';
+import type { User, UserWithoutSuperAdmin } from '@/types/users';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Card } from '@/components/ui/card';
@@ -13,15 +13,40 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { UserForm } from '@/components/users/UserForm';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
+import { getUsersWithoutSuperAdmin, deleteUser } from '@/lib/api';
+import { UsersTable } from '@/components/users/UsersTable';
 
 export function UsersClientPage() {
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<UserWithoutSuperAdmin[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isUserFormOpen, setIsUserFormOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState<number | null>(null);
   const { toast } = useToast();
-  const { apiUser, isAuthenticated } = useAuth();
+  const { apiUser, isAuthenticated, token } = useAuth();
   const router = useRouter();
+
+  const fetchUsers = async () => {
+    if (!token) {
+      setIsLoading(false);
+      return;
+    }
+    
+    try {
+      setIsLoading(true);
+      const usersData = await getUsersWithoutSuperAdmin(token);
+      setUsers(usersData);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      toast({
+        title: "خطأ",
+        description: "فشل في جلب بيانات المستخدمين. تحقق من تسجيل الدخول.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -29,17 +54,35 @@ export function UsersClientPage() {
       return;
     }
     
-    // For now, we'll show a placeholder since the API doesn't have a users list endpoint
-    setIsLoading(false);
-  }, [isAuthenticated, router]);
+    // تأخير قصير للتأكد من تحميل token
+    const timer = setTimeout(() => {
+      fetchUsers();
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, [isAuthenticated, router, token]);
 
-  // Delete functionality not implemented yet
   const handleDelete = async (userId: number) => {
-    toast({ 
-      title: "تنبيه", 
-      description: "حذف المستخدمين غير متاح حالياً.", 
-      variant: "destructive" 
-    });
+    if (!token) return;
+    
+    try {
+      setIsDeleting(userId);
+      await deleteUser(userId, token);
+      toast({
+        title: "نجح",
+        description: "تم حذف المستخدم بنجاح",
+      });
+      await fetchUsers(); // إعادة تحميل القائمة
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast({
+        title: "خطأ",
+        description: "فشل في حذف المستخدم",
+        variant: "destructive"
+      });
+    } finally {
+      setIsDeleting(null);
+    }
   };
   
   const openAddUserDialog = () => {
@@ -47,15 +90,15 @@ export function UsersClientPage() {
     setIsUserFormOpen(true);
   };
 
-  const openEditUserDialog = (user: User) => {
-    setSelectedUser(user);
+  const openEditUserDialog = (user: UserWithoutSuperAdmin) => {
+    setSelectedUser(user as any);
     setIsUserFormOpen(true);
   };
   
   const onUserFormSubmitSuccess = () => {
     setIsUserFormOpen(false);
     setSelectedUser(null);
-    // Refresh would go here when API supports user listing
+    fetchUsers(); // إعادة تحميل قائمة المستخدمين
   };
 
   const canManageUsers = useMemo(() => 
@@ -83,18 +126,20 @@ export function UsersClientPage() {
             <Skeleton className="h-10 w-32" />
         </div>
         <Card>
+          <Table>
             <TableHeader>
               <TableRow>
-                {[...Array(5)].map((_, i) => <TableHead key={i}><Skeleton className="h-5 w-full" /></TableHead>)}
+                {[...Array(4)].map((_, i) => <TableHead key={i}><Skeleton className="h-5 w-full" /></TableHead>)}
               </TableRow>
             </TableHeader>
             <TableBody>
               {[...Array(3)].map((_, i) => (
                 <TableRow key={i}>
-                  {[...Array(5)].map((_, j) => <TableCell key={j}><Skeleton className="h-5 w-full" /></TableCell>)}
+                  {[...Array(4)].map((_, j) => <TableCell key={j}><Skeleton className="h-5 w-full" /></TableCell>)}
                 </TableRow>
               ))}
             </TableBody>
+          </Table>
         </Card>
       </div>
     );
@@ -125,11 +170,20 @@ export function UsersClientPage() {
         </Dialog>
       </div>
 
-      <div className="text-center py-10 text-muted-foreground">
-        <UsersRound size={48} className="mx-auto mb-2" />
-        <p>قائمة المستخدمين ستظهر هنا بعد تطبيق API عرض المستخدمين.</p>
-        <p className="text-sm mt-2">يمكنك إضافة مستخدمين جدد باستخدام الزر أعلاه.</p>
-      </div>
+      {users.length === 0 ? (
+        <div className="text-center py-10 text-muted-foreground">
+          <UsersRound size={48} className="mx-auto mb-2" />
+          <p>لا يوجد مستخدمين لعرضهم</p>
+          <p className="text-sm mt-2">يمكنك إضافة مستخدمين جدد باستخدام الزر أعلاه</p>
+        </div>
+      ) : (
+        <UsersTable 
+          users={users}
+          onEdit={openEditUserDialog}
+          onDelete={handleDelete}
+          isDeleting={isDeleting}
+        />
+      )}
     </div>
   );
 }

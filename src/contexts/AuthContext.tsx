@@ -12,9 +12,11 @@ interface AuthContextType {
   apiUser: ApiUser | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  token: string | null;
   refetchUser: () => Promise<void>;
   logout: () => Promise<void>;
   setApiUser: (user: ApiUser | null) => void;
+  setToken: (token: string | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -22,13 +24,15 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [apiUser, setApiUser] = useState<ApiUser | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  // Load user from localStorage on mount
+  // Load user and token from localStorage on mount
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('currentApiUser');
+      const storedToken = localStorage.getItem('remoteToken') || localStorage.getItem('localToken');
       if (stored) {
         try {
           const user = JSON.parse(stored);
@@ -36,6 +40,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (e) {
           console.error('Failed to parse stored user:', e);
         }
+      }
+      if (storedToken) {
+        setToken(storedToken);
       }
       setIsLoading(false);
     }
@@ -59,6 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await apiLogout();
     setCurrentUser(null);
     setApiUser(null);
+    setToken(null);
     router.push('/login');
   }, [router]);
 
@@ -73,6 +81,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const setTokenAndStore = useCallback((newToken: string | null) => {
+    setToken(newToken);
+    if (typeof window !== 'undefined') {
+      if (newToken) {
+        localStorage.setItem('remoteToken', newToken);
+        localStorage.setItem('localToken', newToken);
+      } else {
+        localStorage.removeItem('remoteToken');
+        localStorage.removeItem('localToken');
+      }
+    }
+  }, []);
+
   // Remove the automatic refetch on mount since we're loading from localStorage
 
   const isAuthenticated = !!currentUser || !!apiUser;
@@ -83,9 +104,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       apiUser, 
       isLoading, 
       isAuthenticated,
+      token,
       refetchUser, 
       logout,
-      setApiUser: setApiUserAndStore
+      setApiUser: setApiUserAndStore,
+      setToken: setTokenAndStore
     }}>
       {children}
     </AuthContext.Provider>

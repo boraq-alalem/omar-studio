@@ -20,6 +20,7 @@ export const API_ENDPOINTS = {
   LATEST_RESERVED_TITLES: '/reserved-thesis-titles-latest',
   LATEST_RESERVED_TITLES_GUESTS: '/reserved-thesis-titles-latest-guests',
   RESERVED_TITLES: '/reserved-thesis-titles',
+  USERS_WITHOUT_SUPER_ADMIN: '/users-without-super-admin',
 };
 
 export const EXTERNAL_LINKS = {

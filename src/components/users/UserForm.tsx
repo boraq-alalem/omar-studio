@@ -10,39 +10,49 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import type { User, ApiRole, CreateUserRequest } from '@/types/users';
+import type { User, ApiRole, CreateUserRequest, UpdateUserRequest, UserWithoutSuperAdmin } from '@/types/users';
 import { addUser, getAllRoles } from '@/lib/authService';
+import { updateUser } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 
-const userFormSchema = z.object({
+const createUserSchema = z.object({
   name: z.string().min(2, { message: "اسم المستخدم يجب أن يكون حرفين على الأقل." }),
   email: z.string().email({ message: "الرجاء إدخال بريد إلكتروني صحيح." }),
   password: z.string().min(6, { message: "كلمة المرور يجب أن تكون 6 أحرف على الأقل." }),
   role_id: z.number({ required_error: "الرجاء اختيار نوع المستخدم." }),
 });
 
-type UserFormValues = z.infer<typeof userFormSchema>;
+const updateUserSchema = z.object({
+  name: z.string().min(2).optional(),
+  email: z.string().email().optional(),
+  role_id: z.number().optional(),
+});
+
+type CreateUserFormValues = z.infer<typeof createUserSchema>;
+type UpdateUserFormValues = z.infer<typeof updateUserSchema>;
 
 interface UserFormProps {
-  initialData?: User | null;
+  initialData?: UserWithoutSuperAdmin | null;
   onSuccess: () => void;
   onCancel: () => void;
 }
 
 export function UserForm({ initialData, onSuccess, onCancel }: UserFormProps) {
   const { toast } = useToast();
+  const { token } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [roles, setRoles] = useState<ApiRole[]>([]);
   const [isLoadingRoles, setIsLoadingRoles] = useState(true);
   const isEditing = !!initialData;
 
-  const form = useForm<UserFormValues>({
-    resolver: zodResolver(userFormSchema),
+  const form = useForm<CreateUserFormValues | UpdateUserFormValues>({
+    resolver: zodResolver(isEditing ? updateUserSchema : createUserSchema),
     defaultValues: {
-      name: initialData?.fullName || "",
-      email: initialData?.username || "",
+      name: initialData?.name || "",
+      email: initialData?.email || "",
       password: "",
-      role_id: 0,
+      role_id: initialData?.roles[0]?.id || 0,
     },
   });
 
@@ -65,11 +75,11 @@ export function UserForm({ initialData, onSuccess, onCancel }: UserFormProps) {
     loadRoles();
   }, [toast]);
 
-  async function onSubmit(data: UserFormValues) {
-    if (isEditing) {
+  async function onSubmit(data: CreateUserFormValues | UpdateUserFormValues) {
+    if (!token) {
       toast({
-        title: "تنبيه",
-        description: "تعديل المستخدمين غير متاح حالياً.",
+        title: "خطأ",
+        description: "لم يتم العثور على رمز المصادقة",
         variant: "destructive",
       });
       return;
@@ -77,27 +87,59 @@ export function UserForm({ initialData, onSuccess, onCancel }: UserFormProps) {
 
     setIsSubmitting(true);
     try {
-      const userData: CreateUserRequest = {
-        name: data.name,
-        email: data.email,
-        password: data.password,
-        role_id: data.role_id,
-      };
-      
-      const result = await addUser(userData);
-      
-      toast({ 
-        title: "نجاح", 
-        description: `تمت إضافة المستخدم بنجاح. المعرف المحلي: ${result.local_user?.id || 'غير متاح'}، المعرف الخارجي: ${result.remote_user?.id || 'غير متاح'}` 
-      });
+      if (isEditing && initialData) {
+        // تعديل مستخدم
+        const updateData: UpdateUserRequest = {};
+        if (data.name && data.name !== initialData.name) updateData.name = data.name;
+        if (data.email && data.email !== initialData.email) updateData.email = data.email;
+        if (data.role_id && data.role_id !== initialData.roles[0]?.id) updateData.role_id = data.role_id;
+        
+        if (Object.keys(updateData).length === 0) {
+          toast({
+            title: "تنبيه",
+            description: "لم يتم تغيير أي بيانات",
+          });
+          return;
+        }
+        
+        await updateUser(initialData.id, updateData, token);
+        toast({ 
+          title: "نجاح", 
+          description: "تم تعديل بيانات المستخدم بنجاح" 
+        });
+      } else {
+        // إضافة مستخدم جديد
+        const userData: CreateUserRequest = {
+          name: data.name!,
+          email: data.email!,
+          password: (data as CreateUserFormValues).password,
+          role_id: data.role_id!,
+        };
+        
+        const result = await addUser(userData);
+        toast({ 
+          title: "نجاح", 
+          description: `تمت إضافة المستخدم بنجاح` 
+        });
+      }
       
       onSuccess();
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message || "فشل إضافة المستخدم.",
-        variant: "destructive",
-      });
+      if (error.errors) {
+        // أخطاء التحقق
+        const errorMessages = Object.values(error.errors).flat().join('\n');
+        toast({
+          title: "خطأ في البيانات",
+          description: errorMessages,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "خطأ",
+          description: error.message || "فشل في عملية المستخدم",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -115,12 +157,19 @@ export function UserForm({ initialData, onSuccess, onCancel }: UserFormProps) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4 max-h-[70vh] overflow-y-auto pr-2">
+        {isEditing && (
+          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-800">
+              ملاحظة: يمكنك تعديل الحقول التي تريد تغييرها فقط. الحقول الفارغة لن يتم تغييرها.
+            </p>
+          </div>
+        )}
         <FormField
           control={form.control}
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>اسم المستخدم</FormLabel>
+              <FormLabel>اسم المستخدم {isEditing && '(اختياري)'}</FormLabel>
               <FormControl>
                 <Input placeholder="مثال: أحمد محمد" {...field} />
               </FormControl>
@@ -133,7 +182,7 @@ export function UserForm({ initialData, onSuccess, onCancel }: UserFormProps) {
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>البريد الإلكتروني</FormLabel>
+              <FormLabel>البريد الإلكتروني {isEditing && '(اختياري)'}</FormLabel>
               <FormControl>
                 <Input type="email" placeholder="مثال: user@example.com" {...field} />
               </FormControl>
@@ -141,26 +190,28 @@ export function UserForm({ initialData, onSuccess, onCancel }: UserFormProps) {
             </FormItem>
           )}
         />
-        <FormField
-          control={form.control}
-          name="password"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>كلمة المرور</FormLabel>
-              <FormControl>
-                <Input type="password" placeholder="********" {...field} />
-              </FormControl>
-              <FormDescription>يجب أن تكون كلمة المرور 6 أحرف على الأقل.</FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {!isEditing && (
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>كلمة المرور</FormLabel>
+                <FormControl>
+                  <Input type="password" placeholder="********" {...field} />
+                </FormControl>
+                <FormDescription>يجب أن تكون كلمة المرور 6 أحرف على الأقل.</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
         <FormField
           control={form.control}
           name="role_id"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>نوع المستخدم</FormLabel>
+              <FormLabel>نوع المستخدم {isEditing && '(اختياري)'}</FormLabel>
               <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString()}>
                 <FormControl>
                   <SelectTrigger>
@@ -204,7 +255,7 @@ export function UserForm({ initialData, onSuccess, onCancel }: UserFormProps) {
             </Button>
             <Button type="submit" disabled={isSubmitting}>
                {isSubmitting && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
-              إضافة مستخدم
+              {isEditing ? 'حفظ التعديل' : 'إضافة مستخدم'}
             </Button>
         </div>
       </form>

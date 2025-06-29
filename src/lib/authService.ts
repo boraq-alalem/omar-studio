@@ -208,13 +208,13 @@ async function storeUserUuids(id_local: number, id_remote: number): Promise<void
   const uuidData = { id_local: String(id_local), id_remote: String(id_remote) };
   
   const endpoints = [
-    { base: EXTERNAL_LINKS.API_BASE_URL_LOCAL, token: getLocalToken() },
-    { base: EXTERNAL_LINKS.API_BASE_URL_PROD, token: getRemoteToken() }
+    { base: EXTERNAL_LINKS.API_BASE_URL_LOCAL, token: getLocalToken(), name: 'المحلي' },
+    { base: EXTERNAL_LINKS.API_BASE_URL_PROD, token: getRemoteToken(), name: 'الخارجي' }
   ];
   
-  await Promise.all(endpoints.map(async ({ base, token }) => {
+  await Promise.all(endpoints.map(async ({ base, token, name }) => {
     try {
-      await fetch(`${base.replace(/\/$/, '')}/user-uuids`, {
+      const response = await fetch(`${base.replace(/\/$/, '')}/user-uuids`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -223,8 +223,14 @@ async function storeUserUuids(id_local: number, id_remote: number): Promise<void
         },
         body: JSON.stringify(uuidData),
       });
+      
+      if (response.ok) {
+        console.log(`تم حفظ UUIDs بنجاح في الخادم ${name}`);
+      } else {
+        console.log(`فشل حفظ UUIDs في الخادم ${name}: ${response.status}`);
+      }
     } catch (e) {
-      console.error('Failed to store user UUIDs:', e);
+      console.error(`خطأ في حفظ UUIDs في الخادم ${name}:`, e);
     }
   }));
 }

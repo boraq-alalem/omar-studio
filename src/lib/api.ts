@@ -624,61 +624,108 @@ export const getUsersWithoutSuperAdmin = async (localToken: string, remoteToken:
 
 // تعديل مستخدم
 export const updateUser = async (userId: number, userData: any, localToken: string, remoteToken: string) => {
-  const servers = [
-    { url: EXTERNAL_LINKS.API_BASE_URL_LOCAL, token: localToken, name: 'المحلي' },
-    { url: EXTERNAL_LINKS.API_BASE_URL_PROD, token: remoteToken, name: 'الخارجي' }
-  ];
-  
   let successCount = 0;
-  let lastError = null;
+  let firstResponse = null;
   
-  for (const server of servers) {
-    try {
-      const url = `${server.url.replace(/\/$/, '')}/users/${userId}`;
-      const response = await fetch(url, {
+  // 1. تعديل في الخادم المحلي
+  try {
+    const localUrl = `${EXTERNAL_LINKS.API_BASE_URL_LOCAL.replace(/\/$/, '')}/users/${userId}`;
+    const localResponse = await fetch(localUrl, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${localToken}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(userData),
+    });
+    
+    if (localResponse.ok) {
+      successCount++;
+      firstResponse = await localResponse.json();
+      console.log('تم تعديل المستخدم بنجاح في الخادم المحلي');
+    } else if (localResponse.status === 422) {
+      const errorData = await localResponse.json();
+      throw errorData;
+    } else {
+      console.log(`فشل تعديل المستخدم في الخادم المحلي: ${localResponse.status}`);
+    }
+  } catch (error) {
+    if (error.errors) throw error; // Validation errors
+    console.log('خطأ في تعديل المستخدم في الخادم المحلي:', error);
+  }
+  
+  // 2. جلب id_remote وتعديل في الاستضافة
+  try {
+    const remoteUserId = await getRemoteUserId(userId, localToken);
+    if (remoteUserId) {
+      const remoteUrl = `${EXTERNAL_LINKS.API_BASE_URL_PROD.replace(/\/$/, '')}/users/${remoteUserId}`;
+      const remoteResponse = await fetch(remoteUrl, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${server.token}`,
+          'Authorization': `Bearer ${remoteToken}`,
           'Accept': 'application/json',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(userData),
       });
       
-      if (response.ok) {
+      if (remoteResponse.ok) {
         successCount++;
-        if (successCount === 1) {
-          // Return response from first successful server
-          return await response.json();
-        }
-      } else if (response.status === 422) {
-        const errorData = await response.json();
-        throw errorData;
+        console.log(`تم تعديل المستخدم بنجاح في الاستضافة (ID: ${remoteUserId})`);
+      } else {
+        console.log(`فشل تعديل المستخدم في الاستضافة: ${remoteResponse.status}`);
       }
-    } catch (error) {
-      if (error.errors) throw error; // Validation errors
-      console.log(`Failed to update from ${server.name}:`, error);
-      lastError = error;
+    } else {
+      console.log('لم يتم العثور على id_remote للمستخدم');
     }
+  } catch (error) {
+    console.log('خطأ في تعديل المستخدم في الاستضافة:', error);
   }
   
-  if (successCount === 0) {
+  // يجب أن ينجح في كلا الخادمين
+  if (successCount === 2) {
+    return firstResponse;
+  } else if (successCount === 1) {
+    throw new Error('تم التعديل في خادم واحد فقط. يجب النجاح في كلا الخادمين.');
+  } else {
     throw new Error('فشل في تعديل المستخدم في جميع الخوادم');
   }
 };
 
-// حذف مستخدم
-export const deleteUser = async (userId: number, localToken: string, remoteToken: string) => {
+// جلب id_remote بناءً على id_local
+export const getRemoteUserId = async (localUserId: number, localToken: string): Promise<string | null> => {
+  try {
+    const url = `${EXTERNAL_LINKS.API_BASE_URL_LOCAL.replace(/\/$/, '')}/user-uuids/search?id_local=${localUserId}`;
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${localToken}`,
+        'Accept': 'application/json',
+      },
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (Array.isArray(data) && data.length > 0 && data[0].id_remote) {
+        return data[0].id_remote;
+      }
+    }
+  } catch (error) {
+    console.log('Failed to get remote user ID:', error);
+  }
+  return null;
+};
+
+// حذف user_uuids من كلا الخادمين
+export const deleteUserUuids = async (localUserId: number, localToken: string, remoteToken: string) => {
   const servers = [
     { url: EXTERNAL_LINKS.API_BASE_URL_LOCAL, token: localToken, name: 'المحلي' },
-    { url: EXTERNAL_LINKS.API_BASE_URL_PROD, token: remoteToken, name: 'الخارجي' }
+    { url: EXTERNAL_LINKS.API_BASE_URL_PROD, token: remoteToken, name: 'الاستضافة' }
   ];
-  
-  let successCount = 0;
   
   for (const server of servers) {
     try {
-      const url = `${server.url.replace(/\/$/, '')}/users/${userId}`;
+      const url = `${server.url.replace(/\/$/, '')}/user-uuids?id_local=${localUserId}`;
       const response = await fetch(url, {
         method: 'DELETE',
         headers: {
@@ -688,14 +735,79 @@ export const deleteUser = async (userId: number, localToken: string, remoteToken
       });
       
       if (response.ok) {
-        successCount++;
+        console.log(`تم حذف user_uuids بنجاح من ${server.name}`);
+      } else {
+        console.log(`فشل حذف user_uuids من ${server.name}: ${response.status}`);
       }
     } catch (error) {
-      console.log(`Failed to delete from ${server.name}:`, error);
+      console.log(`خطأ في حذف user_uuids من ${server.name}:`, error);
     }
   }
+};
+
+// حذف مستخدم
+export const deleteUser = async (userId: number, localToken: string, remoteToken: string) => {
+  let successCount = 0;
   
-  if (successCount === 0) {
+  // 1. حذف من الخادم المحلي
+  try {
+    const localUrl = `${EXTERNAL_LINKS.API_BASE_URL_LOCAL.replace(/\/$/, '')}/users/${userId}`;
+    const localResponse = await fetch(localUrl, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${localToken}`,
+        'Accept': 'application/json',
+      },
+    });
+    
+    if (localResponse.ok) {
+      successCount++;
+      console.log('تم حذف المستخدم بنجاح من الخادم المحلي');
+    } else {
+      console.log(`فشل حذف المستخدم من الخادم المحلي: ${localResponse.status}`);
+    }
+  } catch (error) {
+    console.log('خطأ في حذف المستخدم من الخادم المحلي:', error);
+  }
+  
+  // 2. جلب id_remote وحذف من الاستضافة
+  try {
+    const remoteUserId = await getRemoteUserId(userId, localToken);
+    if (remoteUserId) {
+      const remoteUrl = `${EXTERNAL_LINKS.API_BASE_URL_PROD.replace(/\/$/, '')}/users/${remoteUserId}`;
+      const remoteResponse = await fetch(remoteUrl, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${remoteToken}`,
+          'Accept': 'application/json',
+        },
+      });
+      
+      if (remoteResponse.ok) {
+        successCount++;
+        console.log(`تم حذف المستخدم بنجاح من الاستضافة (ID: ${remoteUserId})`);
+      } else {
+        console.log(`فشل حذف المستخدم من الاستضافة: ${remoteResponse.status}`);
+      }
+    } else {
+      console.log('لم يتم العثور على id_remote للمستخدم');
+    }
+  } catch (error) {
+    console.log('خطأ في حذف المستخدم من الاستضافة:', error);
+  }
+  
+  // يجب أن ينجح في كلا الخادمين
+  if (successCount === 2) {
+    // حذف user_uuids بعد نجاح حذف المستخدم
+    try {
+      await deleteUserUuids(userId, localToken, remoteToken);
+    } catch (error) {
+      console.log('خطأ في حذف user_uuids:', error);
+    }
+    return;
+  } else if (successCount === 1) {
+    throw new Error('تم الحذف من خادم واحد فقط. يجب النجاح في كلا الخادمين.');
+  } else {
     throw new Error('فشل في حذف المستخدم من جميع الخوادم');
   }
 };

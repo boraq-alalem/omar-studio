@@ -87,37 +87,38 @@ async function fetchApiBoth<T>(endpoint: string, options: RequestInit = {}): Pro
     },
   };
   
-  const fetches = urls.map(base => {
+  // Try local first, then remote
+  for (let i = 0; i < urls.length; i++) {
+    const base = urls[i];
     const url = `${base.replace(/\/$/, '')}${endpoint}`;
-    console.log('Fetching from:', url);
-    return fetch(url, mergedOptions);
-  });
-  const results = await Promise.allSettled(fetches);
-  let allFailed = true;
-  let lastError = null;
-  
-  for (let i = 0; i < results.length; i++) {
-    const result = results[i];
-    const url = urls[i];
     
-    if (result.status === 'fulfilled' && result.value.ok) {
-      allFailed = false;
-      console.log(`Success from ${url}:`, result.value.status);
-      if (result.value.status === 204) return undefined as T;
-      return result.value.json();
-    } else if (result.status === 'fulfilled') {
-      console.error(`HTTP error from ${url}:`, result.value.status, result.value.statusText);
-      lastError = `HTTP ${result.value.status} from ${url}`;
-    } else {
-      console.error(`Network error from ${url}:`, result.reason);
-      lastError = `Network error from ${url}: ${result.reason}`;
+    try {
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('Fetching from:', url);
+      }
+      
+      const response = await fetch(url, mergedOptions);
+      
+      if (response.ok) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`Success from ${url}:`, response.status);
+        }
+        if (response.status === 204) return undefined as T;
+        return response.json();
+      } else {
+        if (process.env.NODE_ENV !== 'production') {
+          console.error(`HTTP error from ${url}:`, response.status, response.statusText);
+        }
+      }
+    } catch (error) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.error(`Network error from ${url}:`, error);
+      }
     }
   }
   
-  if (allFailed) {
-    console.error('All API requests failed. Last error:', lastError);
-    throw new Error(`Both API requests failed. Last error: ${lastError}`);
-  }
+  // If all failed, throw error
+  throw new Error('جميع الخوادم غير متاحة حالياً');
 }
 
 // Remove problematic event listener
@@ -650,7 +651,7 @@ export const updateUser = async (userId: number, userData: any, localToken: stri
     } else {
       console.log(`فشل تعديل المستخدم في الخادم المحلي: ${localResponse.status}`);
     }
-  } catch (error) {
+  } catch (error: any) {
     if (error.errors) throw error; // Validation errors
     console.log('خطأ في تعديل المستخدم في الخادم المحلي:', error);
   }

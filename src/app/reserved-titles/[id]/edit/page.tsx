@@ -11,18 +11,19 @@ import { ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
-export default async function EditReservedTitlePage({ params }: { params: { id: string } }) {
-  const titleId = parseInt(params.id, 10);
+export default async function EditReservedTitlePage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = await params;
+  const titleId = parseInt(resolvedParams.id, 10);
   let titleToEdit: ReservedThesisTitle | undefined = undefined;
 
   try {
     // Attempt to find the reserved title. This is inefficient.
     // A dedicated GET /reserved-titles/:id endpoint would be better.
     const allTitles = await getLatestReservedTitles(); 
-    titleToEdit = allTitles.find(t => t.id === titleId);
+    titleToEdit = allTitles.find((t: ReservedThesisTitle) => t.id === titleId);
      if (!titleToEdit) {
-        const searchResults = await searchReservedTitles(params.id); // Assuming search can find by ID/title part
-        titleToEdit = searchResults.find(t => t.id === titleId);
+        const searchResults = await searchReservedTitles(resolvedParams.id); // Assuming search can find by ID/title part
+        titleToEdit = searchResults.find((t: ReservedThesisTitle) => t.id === titleId);
     }
   } catch (e) {
     console.error("Failed to fetch reserved title data for editing:", e);

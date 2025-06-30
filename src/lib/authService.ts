@@ -3,44 +3,71 @@ import type { User, UserRole, PermissionId, ApiRole, ApiUser, LoginResponse, Cre
 import { ALL_PERMISSIONS } from '@/types/users';
 import { EXTERNAL_LINKS } from './endpoints';
 
-// Token storage - use localStorage for persistence
-const getLocalToken = () => typeof window !== 'undefined' ? localStorage.getItem('localToken') : null;
-const getRemoteToken = () => typeof window !== 'undefined' ? localStorage.getItem('remoteToken') : null;
+// Cookie utilities
+const setCookie = (name: string, value: string, days: number = 7) => {
+  if (typeof document !== 'undefined') {
+    const expires = new Date();
+    expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
+    document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/;SameSite=Lax`;
+  }
+};
+
+const getCookie = (name: string): string | null => {
+  if (typeof document !== 'undefined') {
+    const nameEQ = name + "=";
+    const ca = document.cookie.split(';');
+    for (let i = 0; i < ca.length; i++) {
+      let c = ca[i];
+      while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+      if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+    }
+  }
+  return null;
+};
+
+const deleteCookie = (name: string) => {
+  if (typeof document !== 'undefined') {
+    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;`;
+  }
+};
+
+// Token storage - use cookies for persistence
+const getLocalToken = () => getCookie('localToken');
+const getRemoteToken = () => getCookie('remoteToken');
 const getCurrentApiUser = () => {
-  if (typeof window !== 'undefined') {
-    const stored = localStorage.getItem('currentApiUser');
-    return stored ? JSON.parse(stored) : null;
+  const stored = getCookie('currentApiUser');
+  if (stored) {
+    try {
+      return JSON.parse(decodeURIComponent(stored));
+    } catch (e) {
+      console.error('Failed to parse stored user:', e);
+      deleteCookie('currentApiUser');
+    }
   }
   return null;
 };
 
 const setLocalToken = (token: string | null) => {
-  if (typeof window !== 'undefined') {
-    if (token) {
-      localStorage.setItem('localToken', token);
-    } else {
-      localStorage.removeItem('localToken');
-    }
+  if (token) {
+    setCookie('localToken', token, 7);
+  } else {
+    deleteCookie('localToken');
   }
 };
 
 const setRemoteToken = (token: string | null) => {
-  if (typeof window !== 'undefined') {
-    if (token) {
-      localStorage.setItem('remoteToken', token);
-    } else {
-      localStorage.removeItem('remoteToken');
-    }
+  if (token) {
+    setCookie('remoteToken', token, 7);
+  } else {
+    deleteCookie('remoteToken');
   }
 };
 
 const setCurrentApiUser = (user: ApiUser | null) => {
-  if (typeof window !== 'undefined') {
-    if (user) {
-      localStorage.setItem('currentApiUser', JSON.stringify(user));
-    } else {
-      localStorage.removeItem('currentApiUser');
-    }
+  if (user) {
+    setCookie('currentApiUser', encodeURIComponent(JSON.stringify(user)), 7);
+  } else {
+    deleteCookie('currentApiUser');
   }
 };
 
@@ -84,7 +111,7 @@ async function fetchApi<T>(endpoint: string, options: RequestInit = {}, useLocal
 }
 
 // Login to both servers
-export async function login(email: string, password: string): Promise<LoginResponse> {
+export async function login(email: string, password: string): Promise<LoginResponse & { localToken: string, remoteToken: string }> {
   const loginData = { email, password };
   let localSuccess = false;
   let remoteSuccess = false;
@@ -115,10 +142,17 @@ export async function login(email: string, password: string): Promise<LoginRespo
     console.log('Failed to login to remote server:', error);
   }
   
-  // Both must succeed to allow login
-  if (localSuccess && remoteSuccess) {
-    setCurrentApiUser(localResponse!.user);
-    return localResponse!;
+  // At least one must succeed to allow login
+  if (localSuccess || remoteSuccess) {
+    const userResponse = localResponse || remoteResponse;
+    if (userResponse) {
+      setCurrentApiUser(userResponse.user);
+      return {
+        ...userResponse,
+        localToken: localResponse?.access_token || '',
+        remoteToken: remoteResponse?.access_token || ''
+      };
+    }
   }
   
   // Clear any stored tokens if login failed
@@ -126,7 +160,7 @@ export async function login(email: string, password: string): Promise<LoginRespo
   setRemoteToken(null);
   setCurrentApiUser(null);
   
-  throw new Error('فشل تسجيل الدخول في أحد الخوادم أو كليهما');
+  throw new Error('فشل تسجيل الدخول في جميع الخوادم');
 }
 
 // Get all roles with permissions
@@ -157,7 +191,7 @@ export async function getAllUsers(): Promise<User[]> {
 
 // Add user to both servers
 export async function addUser(userData: CreateUserRequest): Promise<{ local_user: any, remote_user: any, uuid_stored: boolean }> {
-  const results = { local_user: null, remote_user: null, uuid_stored: false };
+  const results: { local_user: any, remote_user: any, uuid_stored: boolean } = { local_user: null, remote_user: null, uuid_stored: false };
   let localSuccess = false;
   let remoteSuccess = false;
   
@@ -186,7 +220,7 @@ export async function addUser(userData: CreateUserRequest): Promise<{ local_user
   }
   
   // Store UUIDs if both succeeded
-  if (results.local_user?.id && results.remote_user?.id) {
+  if (results.local_user && results.remote_user && results.local_user.id && results.remote_user.id) {
     try {
       await storeUserUuids(results.local_user.id, results.remote_user.id);
       results.uuid_stored = true;
@@ -276,4 +310,9 @@ export async function logout(): Promise<void> {
   setLocalToken(null);
   setRemoteToken(null);
   setCurrentApiUser(null);
+  
+  // Clear all auth cookies
+  deleteCookie('localToken');
+  deleteCookie('remoteToken');
+  deleteCookie('currentApiUser');
 }

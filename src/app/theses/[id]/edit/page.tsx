@@ -9,16 +9,17 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
 
-export default async function EditThesisPage({ params }: { params: { id: string } }) {
-  const thesisId = parseInt(params.id, 10);
+export default async function EditThesisPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = await params;
+  const thesisId = parseInt(resolvedParams.id, 10);
 
   let thesisToEdit: Thesis | undefined = undefined;
   try {
     const allTheses = await getLatestTheses(); 
-    thesisToEdit = allTheses.find(t => t.id === thesisId);
+    thesisToEdit = allTheses.find((t: Thesis) => t.id === thesisId);
     if (!thesisToEdit) {
-        const searchResults = await searchTheses({ title: params.id }); 
-        thesisToEdit = searchResults.find(t => t.id === thesisId);
+        const searchResults = await searchTheses({ title: resolvedParams.id }); 
+        thesisToEdit = searchResults.find((t: Thesis) => t.id === thesisId);
     }
 
   } catch (e) {

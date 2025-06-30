@@ -24,7 +24,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 export default function LoginPage() {
   const { toast } = useToast();
   const router = useRouter();
-  const { setApiUser } = useAuth();
+  const { setApiUser, updateTokens } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<LoginFormValues>({
@@ -40,8 +40,9 @@ export default function LoginPage() {
     try {
       const result = await login(data.email, data.password);
       
-      // Update auth context
+      // Update auth context with user and tokens
       setApiUser(result.user);
+      updateTokens(result.localToken, result.remoteToken);
       
       toast({ 
         title: "نجح تسجيل الدخول", 

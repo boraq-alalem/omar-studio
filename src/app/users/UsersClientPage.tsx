@@ -19,7 +19,7 @@ import { UsersTable } from '@/components/users/UsersTable';
 export function UsersClientPage() {
   const [users, setUsers] = useState<UserWithoutSuperAdmin[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [selectedUser, setSelectedUser] = useState<UserWithoutSuperAdmin | null>(null);
   const [isUserFormOpen, setIsUserFormOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState<number | null>(null);
   const { toast } = useToast();
@@ -27,14 +27,14 @@ export function UsersClientPage() {
   const router = useRouter();
 
   const fetchUsers = async () => {
-    if (!localToken || !remoteToken) {
+    if (!localToken && !remoteToken) {
       setIsLoading(false);
       return;
     }
     
     try {
       setIsLoading(true);
-      const usersData = await getUsersWithoutSuperAdmin(localToken, remoteToken);
+      const usersData = await getUsersWithoutSuperAdmin(localToken || '', remoteToken || '');
       setUsers(usersData);
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -63,11 +63,11 @@ export function UsersClientPage() {
   }, [isAuthenticated, router, localToken, remoteToken]);
 
   const handleDelete = async (userId: number) => {
-    if (!localToken || !remoteToken) return;
+    if (!localToken && !remoteToken) return;
     
     try {
       setIsDeleting(userId);
-      await deleteUser(userId, localToken, remoteToken);
+      await deleteUser(userId, localToken || '', remoteToken || '');
       toast({
         title: "نجح",
         description: "تم حذف المستخدم بنجاح",
@@ -91,7 +91,7 @@ export function UsersClientPage() {
   };
 
   const openEditUserDialog = (user: UserWithoutSuperAdmin) => {
-    setSelectedUser(user as any);
+    setSelectedUser(user);
     setIsUserFormOpen(true);
   };
   

@@ -7,6 +7,34 @@ import { useRouter } from 'next/navigation';
 import type { User, ApiUser } from '@/types/users';
 import { getCurrentUser as apiGetCurrentUser, logout as apiLogout } from '@/lib/authService';
 
+// Cookie utilities
+const setCookie = (name: string, value: string, days: number = 7) => {
+  if (typeof document !== 'undefined') {
+    const expires = new Date();
+    expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
+    document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/;SameSite=Lax`;
+  }
+};
+
+const getCookie = (name: string): string | null => {
+  if (typeof document !== 'undefined') {
+    const nameEQ = name + "=";
+    const ca = document.cookie.split(';');
+    for (let i = 0; i < ca.length; i++) {
+      let c = ca[i];
+      while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+      if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+    }
+  }
+  return null;
+};
+
+const deleteCookie = (name: string) => {
+  if (typeof document !== 'undefined') {
+    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;`;
+  }
+};
+
 interface AuthContextType {
   currentUser: User | null;
   apiUser: ApiUser | null;
@@ -17,6 +45,7 @@ interface AuthContextType {
   refetchUser: () => Promise<void>;
   logout: () => Promise<void>;
   setApiUser: (user: ApiUser | null) => void;
+  updateTokens: (local: string | null, remote: string | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -29,27 +58,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  // Load user and tokens from localStorage on mount
+  // Load user and tokens from cookies on mount
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('currentApiUser');
-      const storedLocalToken = localStorage.getItem('localToken');
-      const storedRemoteToken = localStorage.getItem('remoteToken');
-      
-      if (stored) {
-        try {
-          const user = JSON.parse(stored);
-          setApiUser(user);
-        } catch (e) {
-          console.error('Failed to parse stored user:', e);
-        }
+    const storedUser = getCookie('currentApiUser');
+    const storedLocalToken = getCookie('localToken');
+    const storedRemoteToken = getCookie('remoteToken');
+    
+    if (storedUser) {
+      try {
+        const user = JSON.parse(decodeURIComponent(storedUser));
+        setApiUser(user);
+      } catch (e) {
+        console.error('Failed to parse stored user:', e);
+        deleteCookie('currentApiUser');
       }
-      
-      if (storedLocalToken) setLocalToken(storedLocalToken);
-      if (storedRemoteToken) setRemoteToken(storedRemoteToken);
-      
-      setIsLoading(false);
     }
+    
+    if (storedLocalToken) setLocalToken(storedLocalToken);
+    if (storedRemoteToken) setRemoteToken(storedRemoteToken);
+    
+    setIsLoading(false);
   }, []);
 
   const refetchUser = useCallback(async () => {
@@ -72,18 +100,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setApiUser(null);
     setLocalToken(null);
     setRemoteToken(null);
+    
+    // Clear cookies
+    deleteCookie('currentApiUser');
+    deleteCookie('localToken');
+    deleteCookie('remoteToken');
+    
     router.push('/login');
   }, [router]);
 
   const setApiUserAndStore = useCallback((user: ApiUser | null) => {
     setApiUser(user);
-    if (typeof window !== 'undefined') {
-      if (user) {
-        localStorage.setItem('currentApiUser', JSON.stringify(user));
-      } else {
-        localStorage.removeItem('currentApiUser');
-      }
+    if (user) {
+      setCookie('currentApiUser', encodeURIComponent(JSON.stringify(user)), 7);
+    } else {
+      deleteCookie('currentApiUser');
     }
+  }, []);
+  
+  // Update tokens in cookies when they change
+  useEffect(() => {
+    if (localToken) {
+      setCookie('localToken', localToken, 7);
+    } else {
+      deleteCookie('localToken');
+    }
+  }, [localToken]);
+  
+  useEffect(() => {
+    if (remoteToken) {
+      setCookie('remoteToken', remoteToken, 7);
+    } else {
+      deleteCookie('remoteToken');
+    }
+  }, [remoteToken]);
+  
+  // Function to update tokens
+  const updateTokens = useCallback((local: string | null, remote: string | null) => {
+    setLocalToken(local);
+    setRemoteToken(remote);
   }, []);
 
 
@@ -102,7 +157,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       remoteToken,
       refetchUser, 
       logout,
-      setApiUser: setApiUserAndStore
+      setApiUser: setApiUserAndStore,
+      updateTokens
     }}>
       {children}
     </AuthContext.Provider>

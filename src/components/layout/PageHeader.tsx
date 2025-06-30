@@ -20,10 +20,10 @@ export const PageHeader = ({ title, description, children }: PageHeaderProps) =>
                 {title}
               </h1>
               {description && (
-                <p className="text-muted-foreground text-sm sm:text-base flex items-center gap-2">
+                <div className="text-muted-foreground text-sm sm:text-base flex items-center gap-2">
                   <div className="w-1 h-1 bg-blue-500 rounded-full animate-pulse"></div>
                   {description}
-                </p>
+                </div>
               )}
             </div>
             {children && (

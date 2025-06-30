@@ -118,63 +118,140 @@ export function ReservedTitlesClientPage({ initialReservedTitles }: { initialRes
       )}
 
       {!isLoading && reservedTitles.length > 0 && (
-        <Card className="shadow-lg">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>المعرف</TableHead>
-              <TableHead>العنوان</TableHead>
-              <TableHead>اسم الشخص</TableHead>
-              <TableHead>الجامعة</TableHead>
-              <TableHead>التخصص</TableHead>
-              <TableHead>الدرجة</TableHead>
-              <TableHead>تاريخ الحجز</TableHead>
-              <TableHead>الإجراءات</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {reservedTitles.map((title) => (
-              <TableRow key={title.id}>
-                <TableCell className="font-mono text-xs text-muted-foreground">{title.id}</TableCell>
-                <TableCell className="font-medium">{title.title}</TableCell>
-                <TableCell>{title.person_name}</TableCell>
-                <TableCell>{title.university}</TableCell>
-                <TableCell>{title.specialization}</TableCell>
-                <TableCell>{title.degree}</TableCell>
-                <TableCell>{formatDate(title.date)}</TableCell>
-                <TableCell className="space-x-1 whitespace-nowrap">
-                  <Button variant="ghost" size="icon" asChild>
-                    <Link href={`/reserved-titles/${title.id}/edit`} aria-label="Edit Reserved Title">
-                       <Edit className="h-4 w-4 text-yellow-500" />
-                    </Link>
-                  </Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon" aria-label="Delete Reserved Title">
-                        <Trash2 className="h-4 w-4 text-destructive" />
+        <>
+          {/* Desktop Table */}
+          <Card className="hidden md:block shadow-lg">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>المعرف</TableHead>
+                  <TableHead>العنوان</TableHead>
+                  <TableHead>اسم الشخص</TableHead>
+                  <TableHead>الجامعة</TableHead>
+                  <TableHead>التخصص</TableHead>
+                  <TableHead>الدرجة</TableHead>
+                  <TableHead>تاريخ الحجز</TableHead>
+                  <TableHead>الإجراءات</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {reservedTitles.map((title) => (
+                  <TableRow key={title.id}>
+                    <TableCell className="font-mono text-xs text-muted-foreground">{title.id}</TableCell>
+                    <TableCell className="font-medium">{title.title}</TableCell>
+                    <TableCell>{title.person_name}</TableCell>
+                    <TableCell>{title.university}</TableCell>
+                    <TableCell>{title.specialization}</TableCell>
+                    <TableCell>{title.degree}</TableCell>
+                    <TableCell>{formatDate(title.date)}</TableCell>
+                    <TableCell className="space-x-1 whitespace-nowrap">
+                      <Button variant="ghost" size="icon" asChild>
+                        <Link href={`/reserved-titles/${title.id}/edit`} aria-label="Edit Reserved Title">
+                           <Edit className="h-4 w-4 text-yellow-500" />
+                        </Link>
                       </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>هل أنت متأكد من رغبتك في حذف هذا العنوان المحجوز؟</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          سيتم حذف هذا العنوان نهائياً ولا يمكن التراجع عن هذا الإجراء.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleDelete(title.id)} className="bg-destructive hover:bg-destructive/90">
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" aria-label="Delete Reserved Title">
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>هل أنت متأكد من رغبتك في حذف هذا العنوان المحجوز؟</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              سيتم حذف هذا العنوان نهائياً ولا يمكن التراجع عن هذا الإجراء.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDelete(title.id)} className="bg-destructive hover:bg-destructive/90">
+                              حذف
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+
+          {/* Mobile Cards */}
+          <div className="md:hidden space-y-4">
+            {reservedTitles.map((title, index) => (
+              <Card key={title.id} className="p-4 rounded-2xl border border-border/50 bg-card shadow-modern-lg" style={{ animationDelay: `${index * 0.1}s` }}>
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-base leading-tight line-clamp-2 text-right">
+                      {title.title}
+                    </h4>
+                    <div className="h-px w-full bg-gradient-to-r from-blue-500/30 to-purple-500/30"></div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <span className="text-muted-foreground font-medium text-xs">الشخص:</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-teal-600 rounded-lg flex items-center justify-center text-white font-semibold text-xs">
+                        {title.person_name.charAt(0).toUpperCase()}
+                      </div>
+                      <span className="font-medium text-sm truncate">{title.person_name}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <span className="text-muted-foreground font-medium text-xs">التخصص:</span>
+                      <p className="text-sm font-medium truncate" title={title.specialization}>{title.specialization}</p>
+                    </div>
+                    <div className="inline-flex items-center px-3 py-1 rounded-xl text-xs font-medium bg-gradient-to-r from-purple-500/10 to-pink-500/10 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-700">
+                      {title.degree}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <span className="text-muted-foreground font-medium text-xs">الجامعة:</span>
+                    <p className="text-sm font-medium truncate" title={title.university}>{title.university}</p>
+                  </div>
+                  
+                  <div className="flex gap-2 pt-3 border-t border-border/30">
+                    <Button variant="outline" size="sm" asChild className="flex-1 h-9 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 dark:hover:bg-blue-900/20">
+                      <Link href={`/reserved-titles/${title.id}/edit`}>
+                        <Edit className="h-4 w-4 mr-2" />
+                        تعديل
+                      </Link>
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="outline" size="sm" className="flex-1 h-9 hover:bg-red-50 hover:border-red-200 hover:text-red-600 dark:hover:bg-red-900/20">
+                          <Trash2 className="h-4 w-4 mr-2" />
                           حذف
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </TableCell>
-              </TableRow>
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent className="rounded-2xl">
+                        <AlertDialogHeader>
+                          <AlertDialogTitle className="text-xl font-bold bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent">
+                            تأكيد الحذف
+                          </AlertDialogTitle>
+                          <AlertDialogDescription className="text-base">
+                            هل أنت متأكد من حذف هذا العنوان المحجوز؟ هذه العملية لا يمكن التراجع عنها.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter className="gap-3">
+                          <AlertDialogCancel className="rounded-xl">إلغاء</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDelete(title.id)} className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 rounded-xl">
+                            حذف
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </div>
+              </Card>
             ))}
-          </TableBody>
-        </Table>
-        </Card>
+          </div>
+        </>
       )}
     </div>
   );

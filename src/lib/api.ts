@@ -66,10 +66,6 @@ async function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise
 }
 
 async function fetchApiBoth<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const urls = [
-    EXTERNAL_LINKS.API_BASE_URL_LOCAL,
-    EXTERNAL_LINKS.API_BASE_URL_PROD
-  ];
   const defaultOptions: RequestInit = {
     headers: {
       'Accept': 'application/json',
@@ -77,7 +73,6 @@ async function fetchApiBoth<T>(endpoint: string, options: RequestInit = {}): Pro
     },
   };
   
-  // Merge headers properly
   const mergedOptions = {
     ...defaultOptions,
     ...options,
@@ -87,38 +82,23 @@ async function fetchApiBoth<T>(endpoint: string, options: RequestInit = {}): Pro
     },
   };
   
-  // Try local first, then remote
-  for (let i = 0; i < urls.length; i++) {
-    const base = urls[i];
-    const url = `${base.replace(/\/$/, '')}${endpoint}`;
-    
-    try {
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('Fetching from:', url);
-      }
-      
-      const response = await fetch(url, mergedOptions);
-      
-      if (response.ok) {
-        if (process.env.NODE_ENV !== 'production') {
-          console.log(`Success from ${url}:`, response.status);
-        }
-        if (response.status === 204) return undefined as T;
-        return response.json();
-      } else {
-        if (process.env.NODE_ENV !== 'production') {
-          console.error(`HTTP error from ${url}:`, response.status, response.statusText);
-        }
-      }
-    } catch (error) {
-      if (process.env.NODE_ENV !== 'production') {
-        console.error(`Network error from ${url}:`, error);
-      }
-    }
-  }
+  // Try production server only
+  const url = `${EXTERNAL_LINKS.API_BASE_URL_PROD.replace(/\/$/, '')}${endpoint}`;
   
-  // If all failed, throw error
-  throw new Error('جميع الخوادم غير متاحة حالياً');
+  try {
+    const response = await fetch(url, mergedOptions);
+    
+    if (response.ok) {
+      if (response.status === 204) return undefined as T;
+      return response.json();
+    } else {
+      console.error(`HTTP error from ${url}:`, response.status, response.statusText);
+      throw new Error(`خطأ في الخادم: ${response.status}`);
+    }
+  } catch (error) {
+    console.error(`Network error from ${url}:`, error);
+    throw new Error('الخادم غير متاح حالياً');
+  }
 }
 
 // Remove problematic event listener

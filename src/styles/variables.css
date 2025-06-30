@@ -1,0 +1,166 @@
+/* متغيرات CSS مخصصة للمشروع */
+
+:root {
+  /* أحجام الخطوط */
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 1.875rem;
+  --font-size-4xl: 2.25rem;
+  
+  /* أوزان الخطوط */
+  --font-weight-light: 300;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+  
+  /* المسافات */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-2xl: 3rem;
+  --spacing-3xl: 4rem;
+  
+  /* الحواف المدورة */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+  --radius-full: 9999px;
+  
+  /* الظلال */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  
+  /* ظلال ملونة */
+  --shadow-blue: 0 10px 15px -3px rgba(59, 130, 246, 0.1), 0 4px 6px -2px rgba(59, 130, 246, 0.05);
+  --shadow-purple: 0 10px 15px -3px rgba(139, 92, 246, 0.1), 0 4px 6px -2px rgba(139, 92, 246, 0.05);
+  --shadow-green: 0 10px 15px -3px rgba(16, 185, 129, 0.1), 0 4px 6px -2px rgba(16, 185, 129, 0.05);
+  --shadow-red: 0 10px 15px -3px rgba(239, 68, 68, 0.1), 0 4px 6px -2px rgba(239, 68, 68, 0.05);
+  
+  /* مدة الانتقالات */
+  --transition-fast: 150ms;
+  --transition-normal: 300ms;
+  --transition-slow: 500ms;
+  
+  /* منحنيات الانتقال */
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  
+  /* نقاط التوقف للاستعلامات الإعلامية */
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+  
+  /* ارتفاعات الطبقات */
+  --z-dropdown: 1000;
+  --z-sticky: 1020;
+  --z-fixed: 1030;
+  --z-modal-backdrop: 1040;
+  --z-modal: 1050;
+  --z-popover: 1060;
+  --z-tooltip: 1070;
+  --z-toast: 1080;
+  
+  /* متغيرات التخطيط */
+  --header-height: 4rem;
+  --sidebar-width: 16rem;
+  --sidebar-width-collapsed: 4rem;
+  --mobile-nav-height: 4rem;
+  --container-max-width: 1200px;
+  
+  /* متغيرات النماذج */
+  --input-height: 2.5rem;
+  --input-height-sm: 2rem;
+  --input-height-lg: 3rem;
+  --button-height: 2.5rem;
+  --button-height-sm: 2rem;
+  --button-height-lg: 3rem;
+  
+  /* متغيرات الجداول */
+  --table-row-height: 3rem;
+  --table-header-height: 3.5rem;
+  --table-cell-padding: 1rem;
+  
+  /* متغيرات البطاقات */
+  --card-padding: 1.5rem;
+  --card-padding-sm: 1rem;
+  --card-padding-lg: 2rem;
+  --card-border-width: 1px;
+  
+  /* متغيرات الشارات */
+  --badge-height: 1.5rem;
+  --badge-padding-x: 0.5rem;
+  --badge-font-size: 0.75rem;
+  
+  /* متغيرات التنبيهات */
+  --alert-padding: 1rem;
+  --alert-border-width: 1px;
+  --alert-border-radius: 0.5rem;
+  
+  /* متغيرات التقدم */
+  --progress-height: 0.5rem;
+  --progress-border-radius: 0.25rem;
+  
+  /* متغيرات الأزرار العائمة */
+  --fab-size: 3.5rem;
+  --fab-size-sm: 2.5rem;
+  --fab-size-lg: 4rem;
+}
+
+/* متغيرات للوضع الداكن */
+.dark {
+  /* ظلال محسنة للوضع الداكن */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  
+  /* ظلال ملونة للوضع الداكن */
+  --shadow-blue: 0 10px 15px -3px rgba(59, 130, 246, 0.2), 0 4px 6px -2px rgba(59, 130, 246, 0.1);
+  --shadow-purple: 0 10px 15px -3px rgba(139, 92, 246, 0.2), 0 4px 6px -2px rgba(139, 92, 246, 0.1);
+  --shadow-green: 0 10px 15px -3px rgba(16, 185, 129, 0.2), 0 4px 6px -2px rgba(16, 185, 129, 0.1);
+  --shadow-red: 0 10px 15px -3px rgba(239, 68, 68, 0.2), 0 4px 6px -2px rgba(239, 68, 68, 0.1);
+}
+
+/* متغيرات للهاتف النقال */
+@media (max-width: 768px) {
+  :root {
+    /* تقليل المسافات على الهاتف */
+    --spacing-md: 0.75rem;
+    --spacing-lg: 1rem;
+    --spacing-xl: 1.5rem;
+    --spacing-2xl: 2rem;
+    --spacing-3xl: 2.5rem;
+    
+    /* تقليل أحجام الخطوط على الهاتف */
+    --font-size-2xl: 1.25rem;
+    --font-size-3xl: 1.5rem;
+    --font-size-4xl: 1.875rem;
+    
+    /* تقليل حشو البطاقات على الهاتف */
+    --card-padding: 1rem;
+    --card-padding-lg: 1.5rem;
+    
+    /* تقليل ارتفاع الجداول على الهاتف */
+    --table-row-height: 2.5rem;
+    --table-header-height: 3rem;
+    --table-cell-padding: 0.75rem;
+  }
+}

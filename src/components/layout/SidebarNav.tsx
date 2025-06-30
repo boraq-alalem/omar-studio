@@ -36,27 +36,43 @@ export function SidebarNav() {
 
 
   return (
-    <SidebarMenu>
-      {visibleNavItems.map((item) => (
-        <SidebarMenuItem key={item.href}>
-          <Link href={item.href}>
-            <SidebarMenuButton
-              variant="default"
-              className={cn(
-                pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
-                  ? 'bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90'
-                  : 'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-                'w-full justify-start'
-              )}
-              tooltip={item.label}
-              isActive={pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))}
-            >
-              <item.icon className="h-5 w-5" />
-              <span className="truncate font-headline">{item.label}</span>
-            </SidebarMenuButton>
-          </Link>
-        </SidebarMenuItem>
-      ))}
+    <SidebarMenu className="space-y-2">
+      {visibleNavItems.map((item, index) => {
+        const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+        return (
+          <SidebarMenuItem key={item.href} className="animate-fade-in" style={{ animationDelay: `${index * 0.1}s` }}>
+            <Link href={item.href}>
+              <SidebarMenuButton
+                variant="default"
+                className={cn(
+                  'w-full justify-start h-12 rounded-xl transition-all duration-200 group relative overflow-hidden',
+                  isActive
+                    ? 'bg-gradient-to-r from-sidebar-primary to-sidebar-primary/90 text-sidebar-primary-foreground shadow-lg shadow-sidebar-primary/25 hover:shadow-xl hover:shadow-sidebar-primary/30'
+                    : 'hover:bg-sidebar-accent/80 hover:text-sidebar-accent-foreground hover:scale-[1.02] hover:shadow-md',
+                  'before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/10 before:to-transparent before:translate-x-[-100%] hover:before:translate-x-[100%] before:transition-transform before:duration-700'
+                )}
+                tooltip={item.label}
+                isActive={isActive}
+              >
+                <div className={cn(
+                  'flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-200',
+                  isActive 
+                    ? 'bg-white/20 text-white' 
+                    : 'bg-sidebar-accent/30 text-sidebar-foreground/70 group-hover:bg-sidebar-accent group-hover:text-sidebar-accent-foreground'
+                )}>
+                  <item.icon className="h-4 w-4" />
+                </div>
+                <span className="truncate font-medium text-sm group-data-[collapsible=icon]:hidden">
+                  {item.label}
+                </span>
+                {isActive && (
+                  <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-1 h-6 bg-white rounded-r-full group-data-[collapsible=icon]:hidden" />
+                )}
+              </SidebarMenuButton>
+            </Link>
+          </SidebarMenuItem>
+        );
+      })}
     </SidebarMenu>
   );
 }

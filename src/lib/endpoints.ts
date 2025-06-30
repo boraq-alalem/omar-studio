@@ -24,10 +24,10 @@ export const API_ENDPOINTS = {
 };
 
 export const EXTERNAL_LINKS = {
-  API_BASE_URL_LOCAL: 'http://192.168.0.104:8000/api/',
+  API_BASE_URL_LOCAL: 'http://192.168.1.16:8000/api/',
   API_BASE_URL_PROD: 'https://alalem.c-library.org/api/',
   PLACEHOLDER_IMAGE: 'https://placehold.co/40x40.png',
   FONTS_GOOGLEAPIS: 'https://fonts.googleapis.com',
   FONTS_GSTATIC: 'https://fonts.gstatic.com',
-  FONTS_STYLESHEET: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap',
+  FONTS_STYLESHEET: 'https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&display=swap',
 };

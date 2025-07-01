@@ -219,33 +219,71 @@ export function UniversitiesClientPage({ initialUniversities }: UniversitiesClie
   return (
     <div className="space-y-6">
       <Card className="p-4 shadow-sm">
-        <Tabs value={searchMode} onValueChange={(value) => handleSearchModeChange(value as 'university' | 'specialization')} dir="rtl">
-          <TabsList className="grid w-full grid-cols-2 mb-4">
-            <TabsTrigger value="university">بحث حسب الجامعة</TabsTrigger>
-            <TabsTrigger value="specialization">بحث حسب التخصص</TabsTrigger>
-          </TabsList>
-        </Tabs>
-        <form onSubmit={handleApplyFilter} className="space-y-4">
-          <Combobox
-            options={filterOptions}
-            value={selectedFilterValue}
-            onChange={(value) => setSelectedFilterValue(value)}
-            placeholder={isLoadingAllSpecializations && searchMode === 'specialization' ? "جاري تحميل التخصصات..." : `اختر ${searchMode === 'university' ? 'جامعة' : 'تخصصاً'}...`}
-            searchPlaceholder={`ابحث عن ${searchMode === 'university' ? 'جامعة' : 'تخصص'}...`}
-            notFoundText={`لم يتم العثور على ${searchMode === 'university' ? 'جامعة' : 'تخصص'}.`}
-            disabled={isLoadingAllSpecializations && searchMode === 'specialization'}
-          />
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={handleClearFilters} disabled={isClearFiltersButtonDisabled}>
-              <FilterX className="ml-2 h-4 w-4" />
-              مسح الفلتر
-            </Button>
-            <Button type="submit" disabled={isSearchButtonDisabled}>
-              <Search className="ml-2 h-4 w-4" />
-              {isApplyingFilter ? 'جار البحث...' : 'بحث'}
-            </Button>
-          </div>
-        </form>
+        <div className="bg-muted/30 p-4 rounded-lg border border-muted mb-4">
+          <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+            <Search className="h-5 w-5 text-primary" />
+            فلترة النتائج
+          </h3>
+          
+          <Tabs value={searchMode} onValueChange={(value) => handleSearchModeChange(value as 'university' | 'specialization')} dir="rtl">
+            <TabsList className="grid w-full grid-cols-2 mb-4">
+              <TabsTrigger value="university" className="text-base py-2">
+                <Building className="ml-2 h-4 w-4" />
+                فلترة حسب الجامعة
+              </TabsTrigger>
+              <TabsTrigger value="specialization" className="text-base py-2">
+                <Library className="ml-2 h-4 w-4" />
+                فلترة حسب التخصص
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+          
+          <form onSubmit={handleApplyFilter} className="space-y-4">
+            <div className="bg-card p-3 rounded-lg border">
+              <div className="mb-2">
+                <label className="text-sm font-medium block mb-1">
+                  {searchMode === 'university' ? 'اختر الجامعة:' : 'اختر التخصص:'}
+                </label>
+              </div>
+              <Combobox
+                options={filterOptions}
+                value={selectedFilterValue}
+                onChange={(value) => setSelectedFilterValue(value)}
+                placeholder={isLoadingAllSpecializations && searchMode === 'specialization' ? "جاري تحميل التخصصات..." : `اختر ${searchMode === 'university' ? 'جامعة' : 'تخصصاً'}...`}
+                searchPlaceholder={`ابحث عن ${searchMode === 'university' ? 'جامعة' : 'تخصص'}...`}
+                notFoundText={`لم يتم العثور على ${searchMode === 'university' ? 'جامعة' : 'تخصص'}.`}
+                disabled={isLoadingAllSpecializations && searchMode === 'specialization'}
+              />
+            </div>
+            
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={handleClearFilters} disabled={isClearFiltersButtonDisabled}>
+                <FilterX className="ml-2 h-4 w-4" />
+                مسح الفلتر
+              </Button>
+              <Button type="submit" disabled={isSearchButtonDisabled}>
+                <Search className="ml-2 h-4 w-4" />
+                {isApplyingFilter ? 'جار البحث...' : 'تطبيق الفلتر'}
+              </Button>
+            </div>
+          </form>
+          
+          {isFilterActive && (
+            <div className="mt-4 p-2 bg-primary/10 rounded-lg flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">
+                  {searchMode === 'university' ? 'تم الفلترة حسب الجامعة:' : 'تم الفلترة حسب التخصص:'}
+                </span>
+                <Badge variant="secondary" className="text-xs">
+                  {filterOptions.find(opt => opt.value === selectedFilterValue)?.label || selectedFilterValue}
+                </Badge>
+              </div>
+              <Button variant="ghost" size="sm" onClick={handleClearFilters} className="h-7 px-2">
+                <FilterX className="h-3 w-3" />
+              </Button>
+            </div>
+          )}
+        </div>
       </Card>
 
       {isApplyingFilter && ( /* Skeleton for when applying filter */

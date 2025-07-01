@@ -41,9 +41,15 @@ export function ManageDataClientPage() {
   return (
     <div className="space-y-6">
       <Tabs defaultValue="universities" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="universities">الجامعات</TabsTrigger>
-          <TabsTrigger value="specializations">التخصصات</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 mb-4">
+          <TabsTrigger value="universities" className="text-base py-3">
+            <Building2 className="ml-2 h-5 w-5" />
+            إدارة الجامعات
+          </TabsTrigger>
+          <TabsTrigger value="specializations" className="text-base py-3">
+            <GraduationCap className="ml-2 h-5 w-5" />
+            إدارة التخصصات
+          </TabsTrigger>
         </TabsList>
         
         <TabsContent value="universities" className="space-y-4">

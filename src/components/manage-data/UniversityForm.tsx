@@ -81,21 +81,28 @@ export function UniversityForm({ onSuccess, onCancel }: UniversityFormProps) {
           name="id"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>المعرف</FormLabel>
+              <FormLabel className="text-base font-semibold">المعرف</FormLabel>
+              <div className="bg-muted/30 p-3 rounded-lg border border-muted mb-2">
+                <p className="text-sm mb-2">
+                  يجب أن يكون المعرف فريداً وغير مستخدم مسبقاً
+                </p>
+                {!isLoadingHighestId && (
+                  <div className="flex items-center gap-2 mb-2 bg-primary/10 p-2 rounded">
+                    <span className="text-sm font-medium">أكبر معرف موجود حالياً:</span>
+                    <span className="font-mono font-bold text-primary">{highestId}</span>
+                  </div>
+                )}
+              </div>
               <FormControl>
                 <Input 
                   type="number" 
-                  placeholder={isLoadingHighestId ? "جاري التحميل..." : `أكبر معرف: ${highestId}`}
+                  placeholder={isLoadingHighestId ? "جاري التحميل..." : `أدخل معرفاً أكبر من ${highestId}`}
                   {...field}
                   onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                   disabled={isLoadingHighestId}
+                  className="text-lg font-mono"
                 />
               </FormControl>
-              {!isLoadingHighestId && (
-                <p className="text-sm text-muted-foreground">
-                  أكبر معرف موجود حالياً: {highestId}
-                </p>
-              )}
               <FormMessage />
             </FormItem>
           )}

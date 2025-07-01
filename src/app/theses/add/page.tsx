@@ -20,9 +20,11 @@ export default async function AddThesisPage() {
             </Link>
         </Button>
       </PageHeader>
-      <ThesisForm
-        degrees={degrees}
-      />
+      <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <ThesisForm
+          degrees={degrees}
+        />
+      </div>
     </AppLayout>
   );
 }

@@ -121,16 +121,18 @@ export function EditThesisClientPage({
   }
 
   return (
-    <>
-      <div className="mb-4 text-sm text-muted-foreground">
-        <span>المعرف المحلي: <b>{thesis?.id ?? '-'}</b></span>
-        {' '}||{' '}
-        <span>المعرف الخارجي: <b>{idRemote ?? '-'}</b></span>
+    <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="mb-4 p-3 bg-muted/50 rounded-lg">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-sm text-muted-foreground">
+          <span>المعرف المحلي: <b className="text-foreground">{thesis?.id ?? '-'}</b></span>
+          <span className="hidden sm:inline">||</span>
+          <span>المعرف الخارجي: <b className="text-foreground">{idRemote ?? '-'}</b></span>
+        </div>
       </div>
       <ThesisForm
         initialData={thesis}
         degrees={degrees}
       />
-    </>
+    </div>
   );
 }

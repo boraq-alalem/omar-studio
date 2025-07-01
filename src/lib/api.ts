@@ -22,12 +22,12 @@ import type {
   DeleteReservedTitleResponse,
   ApiError
 } from '@/types/api';
-import { API_ENDPOINTS, EXTERNAL_LINKS } from './endpoints';
+import { API_ENDPOINTS, EXTERNAL_LINKS, API_URLS } from './endpoints';
 import { useServerError } from '@/contexts/ServerErrorContext';
 import { toast } from '@/hooks/use-toast';
 
 async function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const url = `${EXTERNAL_LINKS.API_BASE_URL_PROD.replace(/\/$/, '')}${endpoint}`;
+  const url = `${API_URLS.REMOTE.replace(/\/$/, '')}${endpoint}`;
   const defaultOptions: RequestInit = {
     headers: {
       'Accept': 'application/json',
@@ -83,7 +83,7 @@ async function fetchApiBoth<T>(endpoint: string, options: RequestInit = {}): Pro
   };
   
   // Try production server only
-  const url = `${EXTERNAL_LINKS.API_BASE_URL_PROD.replace(/\/$/, '')}${endpoint}`;
+  const url = `${API_URLS.REMOTE.replace(/\/$/, '')}${endpoint}`;
   
   try {
     const response = await fetch(url, mergedOptions);
@@ -107,11 +107,17 @@ async function fetchApiBoth<T>(endpoint: string, options: RequestInit = {}): Pro
 export const getGeneralStats = () => fetchApiBoth<GeneralStats>('/stats');
 
 // 2. Theses
-export const getLatestTheses = () => fetchApiBoth<Thesis[]>('/theses/latest');
+export const getLatestTheses = () => {
+  return fetch(`${API_URLS.LOCAL}theses/latest`, {
+    headers: { 'Accept': 'application/json' }
+  }).then(res => res.json());
+};
 
 export const searchTheses = (params: { title: string; author?: string; degree_id?: string; specialization_id?: string; university_id?: string; year?: string }) => {
   const queryParams = new URLSearchParams(params as any).toString();
-  return fetchApiBoth<Thesis[]>(`/theses/search?${queryParams}`);
+  return fetch(`${API_URLS.LOCAL}theses/search?${queryParams}`, {
+    headers: { 'Accept': 'application/json' }
+  }).then(res => res.json());
 };
 
 export const searchThesesGuests = (params: { title: string; author?: string; degree_id?: string; specialization_id?: string; university_id?: string; year?: string }) => {
@@ -157,14 +163,18 @@ export const addSpecializationToUniversity = (universityId: number, data: { spec
 
 
 // 5. Archive
-export const getArchivedTheses = () => fetchApiBoth<ArchivedThesis[]>('/archived-theses');
+export const getArchivedTheses = () => {
+  return fetch(`${API_URLS.LOCAL}archived-theses`, {
+    headers: { 'Accept': 'application/json' }
+  }).then(res => res.json());
+};
 export const restoreArchivedThesis = (id: number) => fetchApiBoth<RestoreArchivedThesisResponse>(`/archived-theses/${id}/restore`, { method: 'POST' });
 // Updated as per user request
 export const permanentlyDeleteThesis = (id: number) => fetchApiBoth<DeleteThesisResponse>(`/archived-theses/${id}`, { method: 'DELETE' });
 
 // 6. Reserved Titles
 export const getLatestReservedTitles = () => {
-  const url = `${EXTERNAL_LINKS.API_BASE_URL_PROD}reserved-thesis-titles-latest`;
+  const url = `${API_URLS.REMOTE}reserved-thesis-titles-latest`;
   return fetch(url, { headers: { 'Accept': 'application/json' } }).then(res => res.json());
 };
 export const getLatestReservedTitlesGuests = () => fetchApiBoth<ReservedThesisTitleGuest[]>(
@@ -173,7 +183,7 @@ export const getLatestReservedTitlesGuests = () => fetchApiBoth<ReservedThesisTi
 
 export const addReservedTitle = (data: Omit<ReservedThesisTitle, 'id'>) => {
   const body = new URLSearchParams(data as any);
-  const url = `${EXTERNAL_LINKS.API_BASE_URL_PROD}reserved-thesis-titles`;
+  const url = `${API_URLS.REMOTE}reserved-thesis-titles`;
   return fetch(url, {
     method: 'POST',
     body: body,
@@ -183,7 +193,7 @@ export const addReservedTitle = (data: Omit<ReservedThesisTitle, 'id'>) => {
 
 export const updateReservedTitle = (id: number, data: Omit<ReservedThesisTitle, 'id'>) => {
   const body = new URLSearchParams(data as any);
-  const url = `${EXTERNAL_LINKS.API_BASE_URL_PROD}reserved-thesis-titles/${id}`;
+  const url = `${API_URLS.REMOTE}reserved-thesis-titles/${id}`;
   return fetch(url, {
     method: 'PUT',
     body: body,
@@ -192,12 +202,12 @@ export const updateReservedTitle = (id: number, data: Omit<ReservedThesisTitle, 
 };
 
 export const deleteReservedTitle = (id: number) => {
-  const url = `${EXTERNAL_LINKS.API_BASE_URL_PROD}reserved-thesis-titles/${id}`;
+  const url = `${API_URLS.REMOTE}reserved-thesis-titles/${id}`;
   return fetch(url, { method: 'DELETE', headers: { 'Accept': 'application/json' } }).then(res => res.json());
 };
 
 export const searchReservedTitles = (query: string) => {
-  const url = `${EXTERNAL_LINKS.API_BASE_URL_PROD}reserved-thesis-titles-search?q=${encodeURIComponent(query)}`;
+  const url = `${API_URLS.REMOTE}reserved-thesis-titles-search?q=${encodeURIComponent(query)}`;
   return fetch(url, { headers: { 'Accept': 'application/json' } })
     .then(res => res.json());
 };
@@ -211,8 +221,8 @@ export const searchReservedTitlesGuests = (query: string) => fetchApiBoth<Reserv
  */
 export async function checkThesisTitleExists(title: string): Promise<boolean> {
   const urls = [
-    { base: EXTERNAL_LINKS.API_BASE_URL_LOCAL, label: 'الخادم المحلي' },
-    { base: EXTERNAL_LINKS.API_BASE_URL_PROD, label: 'الاستضافة' }
+    { base: API_URLS.LOCAL, label: 'الخادم المحلي' },
+    { base: API_URLS.REMOTE, label: 'الاستضافة' }
   ];
   const results = await Promise.all(urls.map(async ({ base, label }) => {
     try {
@@ -243,7 +253,7 @@ export async function checkThesisTitleExists(title: string): Promise<boolean> {
  */
 export async function checkReservedTitleExists(title: string): Promise<boolean> {
   try {
-    const url = `${EXTERNAL_LINKS.API_BASE_URL_PROD}reserved-thesis-titles-search?q=${encodeURIComponent(title)}`;
+    const url = `${API_URLS.REMOTE}reserved-thesis-titles-search?q=${encodeURIComponent(title)}`;
     const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
     if (res.ok) {
       const data = await res.json();
@@ -299,7 +309,7 @@ export async function addThesisBoth(formData: FormData): Promise<{ id_local: num
     formData.forEach((value, name) => {
       localFormData.append(name, value);
     });
-    const localRes = await fetch(`${EXTERNAL_LINKS.API_BASE_URL_LOCAL.replace(/\/$/, '')}${API_ENDPOINTS.ADD_THESIS}`, { 
+    const localRes = await fetch(`${API_URLS.LOCAL.replace(/\/$/, '')}${API_ENDPOINTS.ADD_THESIS}`, { 
       method: 'POST', 
       body: localFormData 
     });
@@ -325,7 +335,7 @@ export async function addThesisBoth(formData: FormData): Promise<{ id_local: num
           remoteFormData.append(name, value);
         }
       });
-      const remoteRes = await fetch(`${EXTERNAL_LINKS.API_BASE_URL_PROD.replace(/\/$/, '')}${API_ENDPOINTS.ADD_THESIS}`, { 
+      const remoteRes = await fetch(`${API_URLS.REMOTE.replace(/\/$/, '')}${API_ENDPOINTS.ADD_THESIS}`, { 
         method: 'POST', 
         body: remoteFormData 
       });
@@ -346,8 +356,8 @@ export async function addThesisBoth(formData: FormData): Promise<{ id_local: num
 // إضافة دالة sendUuidsToBothServers لإرسال المعرفات
 export async function sendUuidsToBothServers(id_local: number | string, id_remote: number | string) {
   const endpoints = [
-    { base: EXTERNAL_LINKS.API_BASE_URL_LOCAL, label: 'الخادم المحلي' },
-    { base: EXTERNAL_LINKS.API_BASE_URL_PROD, label: 'الاستضافة' }
+    { base: API_URLS.LOCAL, label: 'الخادم المحلي' },
+    { base: API_URLS.REMOTE, label: 'الاستضافة' }
   ];
   // التأكد أن القيم نصوص
   const body = JSON.stringify({ id_local: String(id_local), id_remote: String(id_remote) });
@@ -373,18 +383,25 @@ export async function sendUuidsToBothServers(id_local: number | string, id_remot
   }));
 }
 
-// جلب id_remote بناءً على id_local من جدول uuids
 export async function getRemoteIdByLocalId(id_local: string | number): Promise<string | null> {
   try {
-    const res = await fetch(`${EXTERNAL_LINKS.API_BASE_URL_LOCAL}uuids/search?id_local=${id_local}`);
+    const url = `${API_URLS.LOCAL}uuids/search?id_local=${id_local}`;
+    console.log('Fetching from URL:', url);
+    const res = await fetch(url, {
+      headers: { 'Accept': 'application/json' },
+    });
+    
     if (res.ok) {
       const data = await res.json();
+      console.log('Response data for ID', id_local, ':', data);
       if (Array.isArray(data) && data.length > 0 && data[0].id_remote) {
         return data[0].id_remote;
       }
+    } else {
+      console.log('Request failed with status:', res.status);
     }
-  } catch {
-    // تجاهل الأخطاء
+  } catch (error) {
+    console.log('Error:', error);
   }
   return null;
 }
@@ -399,7 +416,7 @@ export async function updateThesisBoth(id_local: number, id_remote: string | nul
   formData.forEach((value, key) => localFormData.append(key, value));
   localFormData.append('_method', 'PUT');
   requests.push(
-    fetch(`${EXTERNAL_LINKS.API_BASE_URL_LOCAL}theses/${id_local}`, {
+    fetch(`${API_URLS.LOCAL}theses/${id_local}`, {
       method: 'POST',
       body: localFormData,
     })
@@ -424,7 +441,7 @@ export async function updateThesisBoth(id_local: number, id_remote: string | nul
     
     remoteFormData.append('_method', 'PUT');
     requests.push(
-      fetch(`${EXTERNAL_LINKS.API_BASE_URL_PROD}theses/${id_remote}`, {
+      fetch(`${API_URLS.REMOTE}theses/${id_remote}`, {
         method: 'POST',
         body: remoteFormData,
       })
@@ -453,7 +470,7 @@ export async function archiveThesisBoth(id_local: number, id_remote: string | nu
   
   // طلب الخادم المحلي
   requests.push(
-    fetch(`${EXTERNAL_LINKS.API_BASE_URL_LOCAL}theses/${id_local}`, {
+    fetch(`${API_URLS.LOCAL}theses/${id_local}`, {
       method: 'DELETE',
     })
   );
@@ -461,7 +478,7 @@ export async function archiveThesisBoth(id_local: number, id_remote: string | nu
   // طلب الاستضافة إذا توفر id_remote
   if (id_remote) {
     requests.push(
-      fetch(`${EXTERNAL_LINKS.API_BASE_URL_PROD}theses/${id_remote}`, {
+      fetch(`${API_URLS.REMOTE}theses/${id_remote}`, {
         method: 'DELETE',
       })
     );
@@ -489,7 +506,7 @@ export async function restoreArchivedThesisBoth(id_local: number, id_remote: str
   
   // طلب الخادم المحلي
   requests.push(
-    fetch(`${EXTERNAL_LINKS.API_BASE_URL_LOCAL}archived-theses/${id_local}/restore`, {
+    fetch(`${API_URLS.LOCAL}archived-theses/${id_local}/restore`, {
       method: 'POST',
     })
   );
@@ -497,7 +514,7 @@ export async function restoreArchivedThesisBoth(id_local: number, id_remote: str
   // طلب الاستضافة إذا توفر id_remote
   if (id_remote) {
     requests.push(
-      fetch(`${EXTERNAL_LINKS.API_BASE_URL_PROD}archived-theses/${id_remote}/restore`, {
+      fetch(`${API_URLS.REMOTE}archived-theses/${id_remote}/restore`, {
         method: 'POST',
       })
     );
@@ -525,7 +542,7 @@ export async function permanentlyDeleteThesisBoth(id_local: number, id_remote: s
   
   // طلب الخادم المحلي
   requests.push(
-    fetch(`${EXTERNAL_LINKS.API_BASE_URL_LOCAL}archived-theses/${id_local}`, {
+    fetch(`${API_URLS.LOCAL}archived-theses/${id_local}`, {
       method: 'DELETE',
     })
   );
@@ -533,7 +550,7 @@ export async function permanentlyDeleteThesisBoth(id_local: number, id_remote: s
   // طلب الاستضافة إذا توفر id_remote
   if (id_remote) {
     requests.push(
-      fetch(`${EXTERNAL_LINKS.API_BASE_URL_PROD}archived-theses/${id_remote}`, {
+      fetch(`${API_URLS.REMOTE}archived-theses/${id_remote}`, {
         method: 'DELETE',
       })
     );
@@ -561,8 +578,8 @@ export async function permanentlyDeleteThesisBoth(id_local: number, id_remote: s
 // حذف المعرفات من جدول uuids في كلا الخادمين
 export async function deleteUuidsFromBothServers(id_local: number): Promise<void> {
   const endpoints = [
-    EXTERNAL_LINKS.API_BASE_URL_LOCAL,
-    EXTERNAL_LINKS.API_BASE_URL_PROD
+    API_URLS.LOCAL,
+    API_URLS.REMOTE
   ];
   await Promise.all(endpoints.map(async (base) => {
     try {
@@ -578,8 +595,8 @@ export async function deleteUuidsFromBothServers(id_local: number): Promise<void
 // جلب المستخدمين بدون super admin
 export const getUsersWithoutSuperAdmin = async (localToken: string, remoteToken: string) => {
   const servers = [
-    { url: EXTERNAL_LINKS.API_BASE_URL_LOCAL, token: localToken, name: 'المحلي' },
-    { url: EXTERNAL_LINKS.API_BASE_URL_PROD, token: remoteToken, name: 'الخارجي' }
+    { url: API_URLS.LOCAL, token: localToken, name: 'المحلي' },
+    { url: API_URLS.REMOTE, token: remoteToken, name: 'الخارجي' }
   ];
   
   for (const server of servers) {
@@ -610,7 +627,7 @@ export const updateUser = async (userId: number, userData: any, localToken: stri
   
   // 1. تعديل في الخادم المحلي
   try {
-    const localUrl = `${EXTERNAL_LINKS.API_BASE_URL_LOCAL.replace(/\/$/, '')}/users/${userId}`;
+    const localUrl = `${API_URLS.LOCAL.replace(/\/$/, '')}/users/${userId}`;
     const localResponse = await fetch(localUrl, {
       method: 'PUT',
       headers: {
@@ -640,7 +657,7 @@ export const updateUser = async (userId: number, userData: any, localToken: stri
   try {
     const remoteUserId = await getRemoteUserId(userId, localToken);
     if (remoteUserId) {
-      const remoteUrl = `${EXTERNAL_LINKS.API_BASE_URL_PROD.replace(/\/$/, '')}/users/${remoteUserId}`;
+      const remoteUrl = `${API_URLS.REMOTE.replace(/\/$/, '')}/users/${remoteUserId}`;
       const remoteResponse = await fetch(remoteUrl, {
         method: 'PUT',
         headers: {
@@ -677,7 +694,7 @@ export const updateUser = async (userId: number, userData: any, localToken: stri
 // جلب id_remote بناءً على id_local
 export const getRemoteUserId = async (localUserId: number, localToken: string): Promise<string | null> => {
   try {
-    const url = `${EXTERNAL_LINKS.API_BASE_URL_LOCAL.replace(/\/$/, '')}/user-uuids/search?id_local=${localUserId}`;
+    const url = `${API_URLS.LOCAL.replace(/\/$/, '')}/user-uuids/search?id_local=${localUserId}`;
     const response = await fetch(url, {
       headers: {
         'Authorization': `Bearer ${localToken}`,
@@ -700,8 +717,8 @@ export const getRemoteUserId = async (localUserId: number, localToken: string): 
 // حذف user_uuids من كلا الخادمين
 export const deleteUserUuids = async (localUserId: number, localToken: string, remoteToken: string) => {
   const servers = [
-    { url: EXTERNAL_LINKS.API_BASE_URL_LOCAL, token: localToken, name: 'المحلي' },
-    { url: EXTERNAL_LINKS.API_BASE_URL_PROD, token: remoteToken, name: 'الاستضافة' }
+    { url: API_URLS.LOCAL, token: localToken, name: 'المحلي' },
+    { url: API_URLS.REMOTE, token: remoteToken, name: 'الاستضافة' }
   ];
   
   for (const server of servers) {
@@ -732,7 +749,7 @@ export const deleteUser = async (userId: number, localToken: string, remoteToken
   
   // 1. حذف من الخادم المحلي
   try {
-    const localUrl = `${EXTERNAL_LINKS.API_BASE_URL_LOCAL.replace(/\/$/, '')}/users/${userId}`;
+    const localUrl = `${API_URLS.LOCAL.replace(/\/$/, '')}/users/${userId}`;
     const localResponse = await fetch(localUrl, {
       method: 'DELETE',
       headers: {
@@ -755,7 +772,7 @@ export const deleteUser = async (userId: number, localToken: string, remoteToken
   try {
     const remoteUserId = await getRemoteUserId(userId, localToken);
     if (remoteUserId) {
-      const remoteUrl = `${EXTERNAL_LINKS.API_BASE_URL_PROD.replace(/\/$/, '')}/users/${remoteUserId}`;
+      const remoteUrl = `${API_URLS.REMOTE.replace(/\/$/, '')}/users/${remoteUserId}`;
       const remoteResponse = await fetch(remoteUrl, {
         method: 'DELETE',
         headers: {

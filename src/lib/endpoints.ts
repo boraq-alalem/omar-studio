@@ -23,11 +23,23 @@ export const API_ENDPOINTS = {
   USERS_WITHOUT_SUPER_ADMIN: '/users-without-super-admin',
 };
 
+// تجميع جميع الروابط في مكان واحد
+const BASE_URLS = {
+  LOCAL: 'http://192.168.1.16:8000/api/',
+  PRODUCTION: 'https://alalem.c-library.org/api/',
+} as const;
+
 export const EXTERNAL_LINKS = {
-  API_BASE_URL_LOCAL: 'http://192.168.1.16:8000/api/',
-  API_BASE_URL_PROD: 'https://alalem.c-library.org/api/',
+  API_BASE_URL_LOCAL: BASE_URLS.LOCAL,
+  API_BASE_URL_PROD: BASE_URLS.PRODUCTION,
   PLACEHOLDER_IMAGE: 'https://placehold.co/40x40.png',
   FONTS_GOOGLEAPIS: 'https://fonts.googleapis.com',
   FONTS_GSTATIC: 'https://fonts.gstatic.com',
   FONTS_STYLESHEET: 'https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&display=swap',
 };
+
+// متغيرات للوصول السريع للروابط
+export const API_URLS = {
+  LOCAL: BASE_URLS.LOCAL,
+  REMOTE: BASE_URLS.PRODUCTION,
+} as const;

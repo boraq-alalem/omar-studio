@@ -194,15 +194,15 @@ export function ThesisForm({ initialData, degrees }: ThesisFormProps) {
 
 
   return (
-    <Card className="max-w-2xl mx-auto shadow-xl">
-      <CardHeader>
-        <CardTitle className="font-headline text-2xl text-primary">
+    <Card className="shadow-xl">
+      <CardHeader className="px-4 sm:px-6">
+        <CardTitle className="font-headline text-xl sm:text-2xl text-primary">
           {initialData ? "تعديل الرسالة" : "إضافة رسالة جديدة"}
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-4 sm:px-6">
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 sm:space-y-8">
             <FormField
               control={form.control}
               name="title"
@@ -216,7 +216,7 @@ export function ThesisForm({ initialData, degrees }: ThesisFormProps) {
                 </FormItem>
               )}
             />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               <FormField
                 control={form.control}
                 name="author_name"
@@ -268,7 +268,7 @@ export function ThesisForm({ initialData, degrees }: ThesisFormProps) {
               />
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               <FormField
                 control={form.control}
                 name="university_id"
@@ -351,7 +351,7 @@ export function ThesisForm({ initialData, degrees }: ThesisFormProps) {
               )}
             />
             
-            <Button type="submit" disabled={isSubmitting || isLoadingDropdowns} className="w-full">
+            <Button type="submit" disabled={isSubmitting || isLoadingDropdowns} className="w-full sm:w-auto sm:min-w-[200px]">
               {(isSubmitting || isLoadingDropdowns) && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
               {initialData ? "حفظ التعديلات" : "إضافة الرسالة"}
             </Button>

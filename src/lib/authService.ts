@@ -142,17 +142,15 @@ export async function login(email: string, password: string): Promise<LoginRespo
     console.log('Failed to login to remote server:', error);
   }
   
-  // At least one must succeed to allow login
-  if (localSuccess || remoteSuccess) {
-    const userResponse = localResponse || remoteResponse;
-    if (userResponse) {
-      setCurrentApiUser(userResponse.user);
-      return {
-        ...userResponse,
-        localToken: localResponse?.access_token || '',
-        remoteToken: remoteResponse?.access_token || ''
-      };
-    }
+  // Both servers must succeed to allow login
+  if (localSuccess && remoteSuccess) {
+    // Use local response as primary
+    setCurrentApiUser(localResponse!.user);
+    return {
+      ...localResponse!,
+      localToken: localResponse!.access_token,
+      remoteToken: remoteResponse!.access_token
+    };
   }
   
   // Clear any stored tokens if login failed
@@ -160,7 +158,7 @@ export async function login(email: string, password: string): Promise<LoginRespo
   setRemoteToken(null);
   setCurrentApiUser(null);
   
-  throw new Error('فشل تسجيل الدخول في جميع الخوادم');
+  throw new Error('فشل تسجيل الدخول. يجب أن تكون جميع الخوادم متصلة للمتابعة.');
 }
 
 // Get all roles with permissions

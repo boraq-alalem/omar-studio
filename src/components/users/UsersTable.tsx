@@ -23,28 +23,28 @@ export function UsersTable({ users, onEdit, onDelete, isDeleting }: UsersTablePr
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="px-6">
-                <div className="flex items-center justify-end gap-2">
-                  <span className="text-sm">اسم المستخدم</span>
+              <TableHead className="px-6 text-right">
+                <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full"></div>
+                  <span className="text-sm">اسم المستخدم</span>
                 </div>
               </TableHead>
-              <TableHead className="px-6">
-                <div className="flex items-center justify-end gap-2">
-                  <span className="text-sm">البريد</span>
+              <TableHead className="px-6 text-right">
+                <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-gradient-to-r from-green-500 to-blue-500 rounded-full"></div>
+                  <span className="text-sm">البريد</span>
                 </div>
               </TableHead>
-              <TableHead className="px-6">
-                <div className="flex items-center justify-end gap-2">
-                  <span className="text-sm">الدور</span>
+              <TableHead className="px-6 text-right">
+                <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"></div>
+                  <span className="text-sm">الدور</span>
                 </div>
               </TableHead>
-              <TableHead className="px-6">
-                <div className="flex items-center justify-end gap-2">
-                  <span className="text-sm">إجراءات</span>
+              <TableHead className="px-6 text-right">
+                <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-gradient-to-r from-orange-500 to-red-500 rounded-full"></div>
+                  <span className="text-sm">إجراءات</span>
                 </div>
               </TableHead>
             </TableRow>
@@ -74,7 +74,7 @@ export function UsersTable({ users, onEdit, onDelete, isDeleting }: UsersTablePr
                   </div>
                 </TableCell>
                 <TableCell className="px-6">
-                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <div className="flex gap-2">
                     <Button
                       variant="outline"
                       size="sm"

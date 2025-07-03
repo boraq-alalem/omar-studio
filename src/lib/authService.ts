@@ -1,7 +1,7 @@
 
 import type { User, UserRole, PermissionId, ApiRole, ApiUser, LoginResponse, CreateUserRequest, CreateUserResponse } from '@/types/users';
 import { ALL_PERMISSIONS } from '@/types/users';
-import { EXTERNAL_LINKS } from './endpoints';
+import { EXTERNAL_LINKS, API_ENDPOINTS } from './endpoints';
 
 // Cookie utilities
 const setCookie = (name: string, value: string, days: number = 7) => {
@@ -120,7 +120,7 @@ export async function login(email: string, password: string): Promise<LoginRespo
   
   try {
     // Login to local server
-    localResponse = await fetchApi<LoginResponse>('/login', {
+    localResponse = await fetchApi<LoginResponse>(API_ENDPOINTS.LOGIN, {
       method: 'POST',
       body: JSON.stringify(loginData),
     }, true);
@@ -132,7 +132,7 @@ export async function login(email: string, password: string): Promise<LoginRespo
   
   try {
     // Login to remote server
-    remoteResponse = await fetchApi<LoginResponse>('/login', {
+    remoteResponse = await fetchApi<LoginResponse>(API_ENDPOINTS.LOGIN, {
       method: 'POST',
       body: JSON.stringify(loginData),
     }, false);

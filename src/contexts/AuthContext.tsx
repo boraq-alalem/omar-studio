@@ -6,6 +6,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import { useRouter } from 'next/navigation';
 import type { User, ApiUser } from '@/types/users';
 import { getCurrentUser as apiGetCurrentUser, logout as apiLogout } from '@/lib/authService';
+import { ROUTES } from '@/lib/endpoints';
 
 // Cookie utilities
 const setCookie = (name: string, value: string, days: number = 7) => {
@@ -106,7 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     deleteCookie('localToken');
     deleteCookie('remoteToken');
     
-    router.push('/login');
+    router.push(ROUTES.LOGIN);
   }, [router]);
 
   const setApiUserAndStore = useCallback((user: ApiUser | null) => {

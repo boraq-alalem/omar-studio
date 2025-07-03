@@ -21,6 +21,7 @@ import { useTheme } from 'next-themes';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/contexts/AuthContext'; // Import useAuth
 import { useRouter } from 'next/navigation';
+import { ROUTES } from '@/lib/endpoints';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MobileBottomNav } from './MobileBottomNav';
 
@@ -32,8 +33,8 @@ function AppHeader() {
 
   const handleLogout = async () => {
     await logout();
-    // router.push('/login'); // Redirect to login page after logout - if you have one
-    router.refresh(); // Refresh to reflect logged out state
+    router.push(ROUTES.LOGIN); // تحويل المستخدم إلى صفحة تسجيل الدخول مباشرة
+    // router.refresh(); // لم نعد بحاجة إلى تحديث الصفحة لأننا سنتحول إلى صفحة تسجيل الدخول
   };
   
   const userDisplayName = apiUser?.name || currentUser?.fullName || currentUser?.username || 'المستخدم';

@@ -12,6 +12,7 @@ import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { UserForm } from '@/components/users/UserForm';
 import { useAuth } from '@/contexts/AuthContext';
+import { ROUTES } from '@/lib/endpoints';
 import { useRouter } from 'next/navigation';
 import { getUsersWithoutSuperAdmin, deleteUser } from '@/lib/api';
 import { UsersTable } from '@/components/users/UsersTable';
@@ -50,7 +51,7 @@ export function UsersClientPage() {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      router.push('/login');
+      router.push(ROUTES.LOGIN);
       return;
     }
     

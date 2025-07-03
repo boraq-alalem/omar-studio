@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Building2, GraduationCap, Plus } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { ROUTES } from '@/lib/endpoints';
 import { UniversityForm } from '@/components/manage-data/UniversityForm';
 import { SpecializationForm } from '@/components/manage-data/SpecializationForm';
 
@@ -19,7 +20,7 @@ export function ManageDataClientPage() {
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push('/login');
+      router.push(ROUTES.LOGIN);
     }
   }, [isAuthenticated, isLoading, router]);
 

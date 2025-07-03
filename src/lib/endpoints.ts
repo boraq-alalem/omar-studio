@@ -1,4 +1,5 @@
 export const ROUTES = {
+  LOGIN: '/login',
   THESES: '/theses',
   THESES_ADD: '/theses/add',
   UNIVERSITIES: '/universities',
@@ -8,6 +9,7 @@ export const ROUTES = {
 };
 
 export const API_ENDPOINTS = {
+  LOGIN: '/login',
   LATEST_THESES: '/theses/latest',
   ADD_THESIS: '/theses/',
   THESIS_YEARS: '/theses/years',
@@ -25,7 +27,7 @@ export const API_ENDPOINTS = {
 
 // تجميع جميع الروابط في مكان واحد
 const BASE_URLS = {
-  LOCAL: 'http://192.168.1.16:8000/api/',
+  LOCAL: 'http://127.0.0.1:8000/api/',
   PRODUCTION: 'https://alalem.c-library.org/api/',
 } as const;
 
@@ -43,3 +45,11 @@ export const API_URLS = {
   LOCAL: BASE_URLS.LOCAL,
   REMOTE: BASE_URLS.PRODUCTION,
 } as const;
+
+// دالة مساعدة للحصول على عنوان URL كامل
+export const getApiUrl = (endpoint: string, useLocal: boolean = true): string => {
+  const baseUrl = useLocal ? API_URLS.LOCAL : API_URLS.REMOTE;
+  // إذا كان المسار يبدأ بـ '/' نقوم بإزالته لتجنب تكرار '/' في الرابط
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint.substring(1) : endpoint;
+  return `${baseUrl}${cleanEndpoint}`;
+};

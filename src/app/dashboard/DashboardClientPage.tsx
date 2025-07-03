@@ -8,6 +8,7 @@ import type { GeneralStats } from '@/types/api';
 import { BookOpen, Users, Building, Library, GraduationCap, FileText } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
+import { API_URLS, API_ENDPOINTS, getApiUrl, ROUTES } from '@/lib/endpoints';
 
 interface DashboardClientPageProps {
   initialStats: GeneralStats | null;
@@ -37,8 +38,8 @@ export function DashboardClientPage({ initialStats, initialError }: DashboardCli
   React.useEffect(() => {
     const checkServers = async () => {
       const results = await Promise.allSettled([
-        fetch('http://192.168.1.16:8000/api/stats').then(res => res.ok),
-        fetch('https://alalem.c-library.org/api/stats').then(res => res.ok)
+        fetch(getApiUrl('stats', true)).then(res => res.ok),
+        fetch(getApiUrl('stats', false)).then(res => res.ok)
       ]);
       
       setServerStatus({
@@ -55,7 +56,7 @@ export function DashboardClientPage({ initialStats, initialError }: DashboardCli
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push('/login');
+      router.push(ROUTES.LOGIN);
     }
   }, [isAuthenticated, isLoading, router]);
 

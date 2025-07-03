@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ROUTES } from '@/lib/endpoints';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
@@ -13,11 +14,11 @@ export function middleware(request: NextRequest) {
 
   // If accessing protected route without authentication, redirect to login
   if (isProtectedRoute && (!localToken && !remoteToken)) {
-    return NextResponse.redirect(new URL('/login', request.url));
+    return NextResponse.redirect(new URL(ROUTES.LOGIN, request.url));
   }
 
   // If accessing login page while authenticated, redirect to dashboard
-  if (request.nextUrl.pathname === '/login' && (localToken || remoteToken)) {
+  if (request.nextUrl.pathname === ROUTES.LOGIN && (localToken || remoteToken)) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 

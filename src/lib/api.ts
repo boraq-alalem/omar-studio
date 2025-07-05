@@ -110,19 +110,40 @@ export const getGeneralStats = () => fetchApiBoth<GeneralStats>('/stats');
 export const getLatestTheses = () => {
   return fetch(`${API_URLS.LOCAL}theses/latest`, {
     headers: { 'Accept': 'application/json' }
-  }).then(res => res.json());
+  }).then(res => res.json())
+  .then(response => {
+    // Manejar tanto el formato antiguo (array) como el nuevo (objeto con data)
+    if (response && response.data && Array.isArray(response.data)) {
+      return response.data; // Nuevo formato
+    }
+    return response; // Formato antiguo (array directo)
+  });
 };
 
 export const searchTheses = (params: { title: string; author?: string; degree_id?: string; specialization_id?: string; university_id?: string; year?: string }) => {
   const queryParams = new URLSearchParams(params as any).toString();
   return fetch(`${API_URLS.LOCAL}theses/search?${queryParams}`, {
     headers: { 'Accept': 'application/json' }
-  }).then(res => res.json());
+  }).then(res => res.json())
+  .then(response => {
+    // Manejar tanto el formato antiguo (array) como el nuevo (objeto con data)
+    if (response && response.data && Array.isArray(response.data)) {
+      return response.data; // Nuevo formato
+    }
+    return response; // Formato antiguo (array directo)
+  });
 };
 
 export const searchThesesGuests = (params: { title: string; author?: string; degree_id?: string; specialization_id?: string; university_id?: string; year?: string }) => {
   const queryParams = new URLSearchParams(params as any).toString();
-  return fetchApiBoth<ThesisGuest[]>(`/theses/search-guests?${queryParams}`);
+  return fetchApiBoth<any>(`/theses/search-guests?${queryParams}`)
+    .then(response => {
+      // Manejar tanto el formato antiguo (array) como el nuevo (objeto con data)
+      if (response && response.data && Array.isArray(response.data)) {
+        return response.data; // Nuevo formato
+      }
+      return response; // Formato antiguo (array directo)
+    });
 };
 
 export const addThesis = (formData: FormData) => fetchApiBoth<AddThesisResponse>('/theses/', { method: 'POST', body: formData });
@@ -166,7 +187,14 @@ export const addSpecializationToUniversity = (universityId: number, data: { spec
 export const getArchivedTheses = () => {
   return fetch(`${API_URLS.LOCAL}archived-theses`, {
     headers: { 'Accept': 'application/json' }
-  }).then(res => res.json());
+  }).then(res => res.json())
+  .then(response => {
+    // Manejar tanto el formato antiguo (array) como el nuevo (objeto con data)
+    if (response && response.data && Array.isArray(response.data)) {
+      return response.data; // Nuevo formato
+    }
+    return response; // Formato antiguo (array directo)
+  });
 };
 export const restoreArchivedThesis = (id: number) => fetchApiBoth<RestoreArchivedThesisResponse>(`/archived-theses/${id}/restore`, { method: 'POST' });
 // Updated as per user request
@@ -175,11 +203,25 @@ export const permanentlyDeleteThesis = (id: number) => fetchApiBoth<DeleteThesis
 // 6. Reserved Titles
 export const getLatestReservedTitles = () => {
   const url = `${API_URLS.REMOTE}reserved-thesis-titles-latest`;
-  return fetch(url, { headers: { 'Accept': 'application/json' } }).then(res => res.json());
+  return fetch(url, { headers: { 'Accept': 'application/json' } })
+    .then(res => res.json())
+    .then(response => {
+      // Manejar tanto el formato antiguo (array) como el nuevo (objeto con data)
+      if (response && response.data && Array.isArray(response.data)) {
+        return response.data; // Nuevo formato
+      }
+      return response; // Formato antiguo (array directo)
+    });
 };
-export const getLatestReservedTitlesGuests = () => fetchApiBoth<ReservedThesisTitleGuest[]>(
+export const getLatestReservedTitlesGuests = () => fetchApiBoth<any>(
   '/reserved-thesis-titles-latest-guests'
-);
+).then(response => {
+  // Manejar tanto el formato antiguo (array) como el nuevo (objeto con data)
+  if (response && response.data && Array.isArray(response.data)) {
+    return response.data; // Nuevo formato
+  }
+  return response; // Formato antiguo (array directo)
+});
 
 export const addReservedTitle = (data: Omit<ReservedThesisTitle, 'id'>) => {
   const body = new URLSearchParams(data as any);
@@ -209,9 +251,23 @@ export const deleteReservedTitle = (id: number) => {
 export const searchReservedTitles = (query: string) => {
   const url = `${API_URLS.REMOTE}reserved-thesis-titles-search?q=${encodeURIComponent(query)}`;
   return fetch(url, { headers: { 'Accept': 'application/json' } })
-    .then(res => res.json());
+    .then(res => res.json())
+    .then(response => {
+      // Manejar tanto el formato antiguo (array) como el nuevo (objeto con data)
+      if (response && response.data && Array.isArray(response.data)) {
+        return response.data; // Nuevo formato
+      }
+      return response; // Formato antiguo (array directo)
+    });
 };
-export const searchReservedTitlesGuests = (query: string) => fetchApiBoth<ReservedThesisTitleGuest[]>(`/reserved-thesis-titles-search-guests?q=${encodeURIComponent(query)}`);
+export const searchReservedTitlesGuests = (query: string) => fetchApiBoth<any>(`/reserved-thesis-titles-search-guests?q=${encodeURIComponent(query)}`)
+  .then(response => {
+    // Manejar tanto el formato antiguo (array) como el nuevo (objeto con data)
+    if (response && response.data && Array.isArray(response.data)) {
+      return response.data; // Nuevo formato
+    }
+    return response; // Formato antiguo (array directo)
+  });
 
 // 7. Check Thesis Title Exists
 /**
@@ -228,7 +284,10 @@ export async function checkThesisTitleExists(title: string): Promise<boolean> {
     try {
       const res = await fetch(`${base.replace(/\/$/, '')}/theses/search?title=${encodeURIComponent(title)}`);
       if (res.ok) {
-        const data = await res.json();
+        const response = await res.json();
+        // Manejar tanto el formato antiguo (array) como el nuevo (objeto con data)
+        const data = response && response.data ? response.data : response;
+        
         if (Array.isArray(data) && data.length > 0) {
           toast({
             title: 'تنبيه',
@@ -256,7 +315,10 @@ export async function checkReservedTitleExists(title: string): Promise<boolean> 
     const url = `${API_URLS.REMOTE}reserved-thesis-titles-search?q=${encodeURIComponent(title)}`;
     const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
     if (res.ok) {
-      const data = await res.json();
+      const response = await res.json();
+      // Manejar tanto el formato antiguo (array) como el nuevo (objeto con data)
+      const data = response && response.data ? response.data : response;
+      
       if (Array.isArray(data) && data.length > 0) {
         toast({
           title: 'تنبيه',

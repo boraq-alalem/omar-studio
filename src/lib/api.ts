@@ -107,30 +107,58 @@ async function fetchApiBoth<T>(endpoint: string, options: RequestInit = {}): Pro
 export const getGeneralStats = () => fetchApiBoth<GeneralStats>('/stats');
 
 // 2. Theses
-export const getLatestTheses = () => {
-  return fetch(`${API_URLS.LOCAL}theses/latest`, {
+export const getLatestTheses = (page: number = 1) => {
+  return fetch(`${API_URLS.LOCAL}theses/latest?page=${page}`, {
     headers: { 'Accept': 'application/json' }
   }).then(res => res.json())
   .then(response => {
-    // Manejar tanto el formato antiguo (array) como el nuevo (objeto con data)
-    if (response && response.data && Array.isArray(response.data)) {
-      return response.data; // Nuevo formato
+    // Para el nuevo formato, devolvemos el objeto completo con data y pagination
+    if (response && response.data && response.pagination) {
+      return response; // Devolver el objeto completo con data y pagination
     }
-    return response; // Formato antiguo (array directo)
+    // Para el formato antiguo, envolvemos el array en un objeto similar al nuevo formato
+    if (Array.isArray(response)) {
+      return {
+        data: response,
+        pagination: {
+          current_page: 1,
+          per_page: response.length,
+          total: response.length,
+          last_page: 1,
+          from: 1,
+          to: response.length
+        }
+      };
+    }
+    return response; // Por si acaso hay otro formato
   });
 };
 
-export const searchTheses = (params: { title: string; author?: string; degree_id?: string; specialization_id?: string; university_id?: string; year?: string }) => {
+export const searchTheses = (params: { title: string; author?: string; degree_id?: string; specialization_id?: string; university_id?: string; year?: string; page?: number }) => {
   const queryParams = new URLSearchParams(params as any).toString();
   return fetch(`${API_URLS.LOCAL}theses/search?${queryParams}`, {
     headers: { 'Accept': 'application/json' }
   }).then(res => res.json())
   .then(response => {
-    // Manejar tanto el formato antiguo (array) como el nuevo (objeto con data)
-    if (response && response.data && Array.isArray(response.data)) {
-      return response.data; // Nuevo formato
+    // Para el nuevo formato, devolvemos el objeto completo con data y pagination
+    if (response && response.data && response.pagination) {
+      return response; // Devolver el objeto completo con data y pagination
     }
-    return response; // Formato antiguo (array directo)
+    // Para el formato antiguo, envolvemos el array en un objeto similar al nuevo formato
+    if (Array.isArray(response)) {
+      return {
+        data: response,
+        pagination: {
+          current_page: 1,
+          per_page: response.length,
+          total: response.length,
+          last_page: 1,
+          from: 1,
+          to: response.length
+        }
+      };
+    }
+    return response; // Por si acaso hay otro formato
   });
 };
 

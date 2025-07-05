@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Archive, Edit, FileText, Search, Trash2, Download, FilterX } from 'lucide-react';
 import Link from 'next/link';
-import type { Thesis, University, Specialization, Degree, ThesisYear } from '@/types/api';
+import type { Thesis, University, Specialization, Degree, ThesisYear, ThesisResponse } from '@/types/api';
 import { searchTheses as apiSearchTheses, archiveThesisBoth, getLatestTheses, getRemoteIdByLocalId } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -24,6 +24,12 @@ interface ThesesClientPageProps {
   years: ThesisYear[];
 }
 
+interface PaginationInfo {
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+}
+
 export function ThesesClientPage({ initialTheses, universities, specializations, degrees, years }: ThesesClientPageProps) {
   const [theses, setTheses] = useState<Thesis[]>(initialTheses);
   const [searchTerm, setSearchTerm] = useState('');
@@ -36,6 +42,11 @@ export function ThesesClientPage({ initialTheses, universities, specializations,
   const [isLoading, setIsLoading] = useState(false);
   const [remoteIds, setRemoteIds] = useState<Record<number, string | null>>({});
   const [loadingRemoteIds, setLoadingRemoteIds] = useState(true);
+  const [pagination, setPagination] = useState<PaginationInfo>({
+    currentPage: 1,
+    totalPages: 1,
+    totalItems: initialTheses.length
+  });
   const { toast } = useToast();
 
   // جلب id_remote لكل رسالة عند تحميل أو تحديث القائمة
@@ -59,18 +70,35 @@ export function ThesesClientPage({ initialTheses, universities, specializations,
     fetchRemoteIds();
   }, [theses]);
 
-  const handleSearch = async (e?: React.FormEvent) => {
+  const handleSearch = async (e?: React.FormEvent, page: number = 1) => {
     e?.preventDefault();
     setIsLoading(true);
     try {
-      const searchParams: any = { title: searchTerm };
+      const searchParams: any = { title: searchTerm, page };
       if (filters.university_id) searchParams.university_id = filters.university_id;
       if (filters.specialization_id) searchParams.specialization_id = filters.specialization_id;
       if (filters.degree_id) searchParams.degree_id = filters.degree_id;
       if (filters.year) searchParams.year = filters.year;
       
-      const results = await apiSearchTheses(searchParams);
-      setTheses(results);
+      const response = await apiSearchTheses(searchParams);
+      
+      // Manejar tanto el formato antiguo (array) como el nuevo (objeto con data y pagination)
+      if (response && response.data && response.pagination) {
+        setTheses(response.data);
+        setPagination({
+          currentPage: response.pagination.current_page,
+          totalPages: response.pagination.last_page,
+          totalItems: response.pagination.total
+        });
+      } else {
+        // Formato antiguo (array directo)
+        setTheses(response);
+        setPagination({
+          currentPage: 1,
+          totalPages: 1,
+          totalItems: response.length
+        });
+      }
     } catch (error) {
       toast({ title: "خطأ في البحث", description: "لم نتمكن من إجراء البحث. حاول مرة أخرى.", variant: "destructive" });
     } finally {
@@ -94,18 +122,46 @@ export function ThesesClientPage({ initialTheses, universities, specializations,
   const handleFilterChange = (filterName: keyof typeof filters, value: string) => {
     setFilters(prev => ({ ...prev, [filterName]: value }));
   };
+  
+  const handlePageChange = (page: number) => {
+    if (page < 1 || page > pagination.totalPages || page === pagination.currentPage) return;
+    handleSearch(undefined, page);
+  };
 
   const handleClearFilters = () => {
     setSearchTerm('');
     setFilters({ university_id: '', specialization_id: '', degree_id: '', year: '' });
-    setTheses(initialTheses); 
+    setTheses(initialTheses);
+    setPagination({
+      currentPage: 1,
+      totalPages: 1,
+      totalItems: initialTheses.length
+    });
   };
 
   const handleRefresh = async () => {
     setIsLoading(true);
     try {
-      const data = await getLatestTheses();
-      setTheses(data);
+      const response = await getLatestTheses();
+      
+      // Manejar tanto el formato antiguo (array) como el nuevo (objeto con data y pagination)
+      if (response && response.data && response.pagination) {
+        setTheses(response.data);
+        setPagination({
+          currentPage: response.pagination.current_page,
+          totalPages: response.pagination.last_page,
+          totalItems: response.pagination.total
+        });
+      } else {
+        // Formato antiguo (array directo)
+        setTheses(response);
+        setPagination({
+          currentPage: 1,
+          totalPages: 1,
+          totalItems: response.length
+        });
+      }
+      
       toast({ title: 'تم التحديث', description: 'تم تحديث بيانات الرسائل.' });
     } catch (error) {
       toast({ title: 'خطأ في التحديث', description: 'تعذر تحديث بيانات الرسائل.', variant: 'destructive' });
@@ -382,6 +438,81 @@ export function ThesesClientPage({ initialTheses, universities, specializations,
               </Card>
             ))}
           </div>
+          
+          {/* Pagination */}
+          {pagination.totalPages > 1 && (
+            <div className="flex justify-center items-center mt-6 gap-2 dir-rtl">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => handlePageChange(1)} 
+                disabled={pagination.currentPage === 1}
+                className="px-3 py-1 h-8 hover:bg-blue-600 hover:text-white hover:border-blue-600"
+              >
+                الأول
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => handlePageChange(pagination.currentPage - 1)} 
+                disabled={pagination.currentPage === 1}
+                className="px-3 py-1 h-8 hover:bg-blue-600 hover:text-white hover:border-blue-600"
+              >
+                السابق
+              </Button>
+              
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                  // Show pages around current page
+                  let pageNum;
+                  if (pagination.totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (pagination.currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (pagination.currentPage >= pagination.totalPages - 2) {
+                    pageNum = pagination.totalPages - 4 + i;
+                  } else {
+                    pageNum = pagination.currentPage - 2 + i;
+                  }
+                  
+                  return (
+                    <Button
+                      key={pageNum}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(pageNum)}
+                      className={`w-8 h-8 p-0 hover:bg-blue-600 hover:text-white hover:border-blue-600 ${pagination.currentPage === pageNum ? 'bg-blue-600 text-white border-blue-600' : ''}`}
+                    >
+                      {pageNum}
+                    </Button>
+                  );
+                })}
+              </div>
+              
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => handlePageChange(pagination.currentPage + 1)} 
+                disabled={pagination.currentPage === pagination.totalPages}
+                className="px-3 py-1 h-8 hover:bg-blue-600 hover:text-white hover:border-blue-600"
+              >
+                التالي
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => handlePageChange(pagination.totalPages)} 
+                disabled={pagination.currentPage === pagination.totalPages}
+                className="px-3 py-1 h-8 hover:bg-blue-600 hover:text-white hover:border-blue-600"
+              >
+                الأخير
+              </Button>
+              
+              <span className="text-sm text-muted-foreground mx-2">
+                صفحة {pagination.currentPage} من {pagination.totalPages} ({pagination.totalItems} نتيجة)
+              </span>
+            </div>
+          )}
         </>
       )}
     </div>

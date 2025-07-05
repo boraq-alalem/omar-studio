@@ -12,7 +12,8 @@ export const dynamic = 'force-dynamic';
 export default async function ThesesPage() {
   // Fetch initial data for the client component
   // This data can be passed as props or fetched client-side as well
-  const initialTheses = await getLatestTheses().catch(() => []);
+  const thesesResponse = await getLatestTheses().catch(() => ({ data: [], pagination: { current_page: 1, last_page: 1, total: 0 } }));
+  const initialTheses = thesesResponse.data || [];
   const universities = await getUniversities().catch(() => []);
   const specializations = await getSpecializations().catch(() => []);
   const degrees = await getDegrees().catch(() => []);

@@ -85,6 +85,13 @@ async function fetchApi<T>(endpoint: string, options: RequestInit = {}, useLocal
 
   // Add authorization header if token exists
   const token = useLocal ? getLocalToken() : getRemoteToken();
+  
+  // If we're trying to use local server but no local token exists
+  // and this is not a login request, throw an error
+  if (useLocal && !token && !endpoint.includes(API_ENDPOINTS.LOGIN)) {
+    throw new Error('No local token available for authenticated request');
+  }
+  
   if (token) {
     defaultOptions.headers = {
       ...defaultOptions.headers,
@@ -111,13 +118,40 @@ async function fetchApi<T>(endpoint: string, options: RequestInit = {}, useLocal
 }
 
 // Login to both servers
-export async function login(email: string, password: string): Promise<LoginResponse & { localToken: string, remoteToken: string }> {
+export async function login(email: string, password: string): Promise<LoginResponse & { localToken: string | null, remoteToken: string }> {
   const loginData = { email, password };
   let localSuccess = false;
   let remoteSuccess = false;
   let localResponse: LoginResponse | null = null;
   let remoteResponse: LoginResponse | null = null;
   
+  try {
+    // Login to remote server first
+    remoteResponse = await fetchApi<LoginResponse>(API_ENDPOINTS.LOGIN, {
+      method: 'POST',
+      body: JSON.stringify(loginData),
+    }, false);
+    setRemoteToken(remoteResponse.access_token);
+    remoteSuccess = true;
+    
+    // Check if user has writer-titles role
+    const hasWriterTitlesRole = remoteResponse.user.roles.some(role => role.name === 'writer-titles');
+    
+    // If user has writer-titles role, skip local server login
+    if (hasWriterTitlesRole) {
+      console.log('User has writer-titles role, skipping local server login');
+      setCurrentApiUser(remoteResponse.user);
+      return {
+        ...remoteResponse,
+        localToken: null,
+        remoteToken: remoteResponse.access_token
+      };
+    }
+  } catch (error) {
+    console.log('Failed to login to remote server:', error);
+  }
+  
+  // If not writer-titles or remote login failed, try local server
   try {
     // Login to local server
     localResponse = await fetchApi<LoginResponse>(API_ENDPOINTS.LOGIN, {
@@ -130,33 +164,42 @@ export async function login(email: string, password: string): Promise<LoginRespo
     console.log('Failed to login to local server:', error);
   }
   
-  try {
-    // Login to remote server
-    remoteResponse = await fetchApi<LoginResponse>(API_ENDPOINTS.LOGIN, {
-      method: 'POST',
-      body: JSON.stringify(loginData),
-    }, false);
-    setRemoteToken(remoteResponse.access_token);
-    remoteSuccess = true;
-  } catch (error) {
-    console.log('Failed to login to remote server:', error);
-  }
-  
-  // Both servers must succeed to allow login
-  if (localSuccess && remoteSuccess) {
-    // Use local response as primary
-    setCurrentApiUser(localResponse!.user);
-    return {
-      ...localResponse!,
-      localToken: localResponse!.access_token,
-      remoteToken: remoteResponse!.access_token
-    };
+  // For writer-titles users, only remote server needs to succeed
+  // For other users, both servers must succeed
+  if (remoteSuccess && remoteResponse) {
+    const hasWriterTitlesRole = remoteResponse.user.roles.some(role => role.name === 'writer-titles');
+    
+    if (hasWriterTitlesRole) {
+      // Writer-titles users only need remote login
+      setCurrentApiUser(remoteResponse.user);
+      return {
+        ...remoteResponse,
+        localToken: localSuccess ? localResponse!.access_token : null,
+        remoteToken: remoteResponse.access_token
+      };
+    } else if (localSuccess) {
+      // Other users need both logins
+      setCurrentApiUser(localResponse!.user);
+      return {
+        ...localResponse!,
+        localToken: localResponse!.access_token,
+        remoteToken: remoteResponse.access_token
+      };
+    }
   }
   
   // Clear any stored tokens if login failed
   setLocalToken(null);
   setRemoteToken(null);
   setCurrentApiUser(null);
+  
+  // Check if remote login succeeded but local failed
+  if (remoteSuccess && !localSuccess) {
+    const hasWriterTitlesRole = remoteResponse!.user.roles.some(role => role.name === 'writer-titles');
+    if (!hasWriterTitlesRole) {
+      throw new Error('فشل تسجيل الدخول. الخادم المحلي غير متاح حالياً.');
+    }
+  }
   
   throw new Error('فشل تسجيل الدخول. يجب أن تكون جميع الخوادم متصلة للمتابعة.');
 }
@@ -166,17 +209,25 @@ export async function getAllRoles(): Promise<ApiRole[]> {
   return fetchApi<ApiRole[]>('/roles-with-permissions');
 }
 
+// Helper function to check if user has writer-titles role
+export function hasWriterTitlesRole(user: ApiUser): boolean {
+  return user.roles.some(role => role.name === 'writer-titles');
+}
+
 // Get current user
 export async function getCurrentUser(): Promise<User | null> {
   const currentUser = getCurrentApiUser();
   if (!currentUser) return null;
+  
+  // Check if user has writer-titles role
+  const isWriterTitles = hasWriterTitlesRole(currentUser);
   
   // Convert API user to legacy User format
   return {
     id: currentUser.id,
     username: currentUser.email,
     fullName: currentUser.name,
-    role: 'admin', // Default role
+    role: isWriterTitles ? 'editor' : 'admin', // Use editor role for writer-titles
     permissions: currentUser.permissions.includes('إضافة مستخدمين') ? ['manage_users'] : [],
   };
 }

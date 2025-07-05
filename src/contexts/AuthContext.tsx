@@ -140,6 +140,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const updateTokens = useCallback((local: string | null, remote: string | null) => {
     setLocalToken(local);
     setRemoteToken(remote);
+    
+    // Update cookies directly
+    if (local) {
+      setCookie('localToken', local, 7);
+    } else {
+      deleteCookie('localToken');
+    }
+    
+    if (remote) {
+      setCookie('remoteToken', remote, 7);
+    } else {
+      deleteCookie('remoteToken');
+    }
   }, []);
 
 

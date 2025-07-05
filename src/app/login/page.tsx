@@ -44,10 +44,20 @@ export default function LoginPage() {
       setApiUser(result.user);
       updateTokens(result.localToken, result.remoteToken);
       
-      toast({ 
-        title: "نجح تسجيل الدخول", 
-        description: `مرحباً ${result.user.name}` 
-      });
+      // Check if user has writer-titles role
+      const hasWriterTitlesRole = result.user.roles.some(role => role.name === 'writer-titles');
+      
+      if (hasWriterTitlesRole && !result.localToken) {
+        toast({ 
+          title: "نجح تسجيل الدخول", 
+          description: `مرحباً ${result.user.name} - تم تسجيل الدخول مباشرة (مستخدم writer-titles)` 
+        });
+      } else {
+        toast({ 
+          title: "نجح تسجيل الدخول", 
+          description: `مرحباً ${result.user.name}` 
+        });
+      }
       
       // Redirect to dashboard
       router.push('/dashboard');

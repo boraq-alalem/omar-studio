@@ -72,7 +72,7 @@ async function fetchApiBoth<T>(endpoint: string, options: RequestInit = {}): Pro
       'Content-Type': 'application/json',
     },
   };
-  
+
   const mergedOptions = {
     ...defaultOptions,
     ...options,
@@ -81,24 +81,58 @@ async function fetchApiBoth<T>(endpoint: string, options: RequestInit = {}): Pro
       ...options.headers,
     },
   };
-  
-  // Try production server only
-  const url = `${API_URLS.REMOTE.replace(/\/$/, '')}${endpoint}`;
-  
-  try {
-    const response = await fetch(url, mergedOptions);
-    
-    if (response.ok) {
-      if (response.status === 204) return undefined as T;
-      return response.json();
+
+  const remoteUrl = `${API_URLS.REMOTE.replace(/\/$/, '')}${endpoint}`;
+  const localUrl = `${API_URLS.LOCAL.replace(/\/$/, '')}${endpoint}`;
+
+  // أرسل الطلبين معًا وانتظر النتيجة
+  const [remoteRes, localRes] = await Promise.allSettled([
+    fetch(remoteUrl, mergedOptions),
+    fetch(localUrl, mergedOptions)
+  ]);
+
+  // تحقق من نجاح كل طلب على حدة
+  let remoteOk = false, localOk = false, remoteError = '', localError = '';
+  let remoteData: any = null, localData: any = null;
+
+  if (remoteRes.status === 'fulfilled') {
+    if (remoteRes.value.ok) {
+      remoteOk = true;
+      remoteData = remoteRes.value.status === 204 ? undefined : await remoteRes.value.json();
     } else {
-      console.error(`HTTP error from ${url}:`, response.status, response.statusText);
-      throw new Error(`خطأ في الخادم: ${response.status}`);
+      remoteError = `[REMOTE] HTTP error: ${remoteRes.value.status} ${remoteRes.value.statusText}`;
     }
-  } catch (error) {
-    console.error(`Network error from ${url}:`, error);
-    throw new Error('الخادم غير متاح حالياً');
+  } else {
+    remoteError = `[REMOTE] Network error: ${remoteRes.reason}`;
   }
+
+  if (localRes.status === 'fulfilled') {
+    if (localRes.value.ok) {
+      localOk = true;
+      localData = localRes.value.status === 204 ? undefined : await localRes.value.json();
+    } else {
+      localError = `[LOCAL] HTTP error: ${localRes.value.status} ${localRes.value.statusText}`;
+    }
+  } else {
+    localError = `[LOCAL] Network error: ${localRes.reason}`;
+  }
+
+  // إذا نجح الاثنان فقط أرجع أحد النتائج (الأولى)
+  if (remoteOk && localOk) {
+    return remoteData as T;
+  }
+
+  // إذا فشل أحدهما أظهر رسالة خطأ مفصلة
+  let errorMsg = '';
+  if (!remoteOk) errorMsg += remoteError + '\n';
+  if (!localOk) errorMsg += localError + '\n';
+  // استخدم التوستر إذا متاح
+  if (typeof window !== 'undefined' && typeof window.toast === 'function') {
+    window.toast({ title: 'خطأ في مزامنة البيانات', description: errorMsg, variant: 'destructive' });
+  } else if (typeof toast === 'function') {
+    toast({ title: 'خطأ في مزامنة البيانات', description: errorMsg, variant: 'destructive' });
+  }
+  throw new Error('فشل الطلب على أحد الخادمين:\n' + errorMsg);
 }
 
 // Remove problematic event listener

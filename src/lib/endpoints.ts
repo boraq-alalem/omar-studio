@@ -27,7 +27,7 @@ export const API_ENDPOINTS = {
 
 // تجميع جميع الروابط في مكان واحد
 const BASE_URLS = {
-  LOCAL: 'http://127.0.0.1:8000/api/',
+  LOCAL: 'http://server:8000/api/',
   PRODUCTION: 'https://alalem.c-library.org/api/',
 } as const;
 

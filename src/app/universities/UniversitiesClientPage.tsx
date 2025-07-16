@@ -7,8 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PlusCircle, Building, Library, Loader2, Search, FilterX } from 'lucide-react';
-import type { UniversityWithSpecializationsAdmin, Specialization } from '@/types/api';
-import { addSpecializationToUniversity, getUniversitiesWithSpecializationsAdmin, getSpecializations as getAllSpecializationsApi } from '@/lib/api';
+import type { UniversityWithSpecializationsAdmin, Specialization, University } from '@/types/api';
+import { addSpecializationToUniversity, getSpecializations as getAllSpecializationsApi } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -25,12 +25,25 @@ const addSpecializationDialogSchema = z.object({
 });
 type AddSpecializationDialogFormValues = z.infer<typeof addSpecializationDialogSchema>;
 
+
+
 interface UniversitiesClientPageProps {
-  initialUniversities: UniversityWithSpecializationsAdmin[];
+  allUniversities: University[];
+  universitiesWithSpecs: UniversityWithSpecializationsAdmin[];
 }
 
-export function UniversitiesClientPage({ initialUniversities }: UniversitiesClientPageProps) {
-  const [displayedUniversities, setDisplayedUniversities] = useState<UniversityWithSpecializationsAdmin[]>(initialUniversities || []);
+export function UniversitiesClientPage({ allUniversities, universitiesWithSpecs }: UniversitiesClientPageProps) {
+
+  // دمج الجامعات مع التخصصات: كل الجامعات، وإذا لها تخصصات أضفها، وإلا مصفوفة فارغة
+  const mergeUniversities = (all: University[], specs: UniversityWithSpecializationsAdmin[]): UniversityWithSpecializationsAdmin[] => {
+    const specsMap = new Map(specs.map(u => [u.id, u.specializations]));
+    return all.map(u => ({
+      id: u.id,
+      name: u.name,
+      specializations: specsMap.get(u.id) || []
+    }));
+  };
+  const [displayedUniversities, setDisplayedUniversities] = useState<UniversityWithSpecializationsAdmin[]>(mergeUniversities(allUniversities, universitiesWithSpecs));
   const [allSpecializationsData, setAllSpecializationsData] = useState<Specialization[]>([]);
   const [isLoadingAllSpecializations, setIsLoadingAllSpecializations] = useState(true);
   const [selectedUniversityForDialog, setSelectedUniversityForDialog] = useState<UniversityWithSpecializationsAdmin | null>(null);
@@ -67,14 +80,16 @@ export function UniversitiesClientPage({ initialUniversities }: UniversitiesClie
   const refreshUniversitiesList = async () => {
     setIsLoadingUniversities(true);
     try {
-        const updatedUniversities = await getUniversitiesWithSpecializationsAdmin();
-        setDisplayedUniversities(updatedUniversities || initialUniversities || []);
-        setSelectedFilterValue(''); 
+      const [all, specs] = await Promise.all([
+        (await import('@/lib/api')).getUniversities(),
+        (await import('@/lib/api')).getUniversitiesWithSpecializationsAdmin()
+      ]);
+      setDisplayedUniversities(mergeUniversities(all, specs));
+      setSelectedFilterValue('');
     } catch (error) {
-        toast({ title: "خطأ", description: "فشل تحديث قائمة الجامعات.", variant: "destructive" });
-        setDisplayedUniversities(initialUniversities || []); 
+      toast({ title: "خطأ", description: "فشل تحديث قائمة الجامعات.", variant: "destructive" });
     } finally {
-        setIsLoadingUniversities(false);
+      setIsLoadingUniversities(false);
     }
   };
 
@@ -113,12 +128,10 @@ export function UniversitiesClientPage({ initialUniversities }: UniversitiesClie
       toast({ title: "نجاح", description: `تمت إضافة التخصص "${specDisplayValue}" إلى جامعة "${selectedUniversityForDialog.name}".` });
       dialogForm.reset();
       await refreshUniversitiesList(); // Refresh the main list
-      // Update the selectedUniversityForDialog state if dialog remains open
-      const updatedUni = (initialUniversities || []).find(u => u.id === selectedUniversityForDialog.id) || 
-                         (await getUniversitiesWithSpecializationsAdmin()).find(u => u.id === selectedUniversityForDialog.id);
-
+      // تحديث الجامعة المختارة في الحوار بعد الإضافة
+      const merged = mergeUniversities(allUniversities, universitiesWithSpecs);
+      const updatedUni = merged.find(u => u.id === selectedUniversityForDialog.id);
       if (updatedUni) setSelectedUniversityForDialog(updatedUni); else setSelectedUniversityForDialog(null);
-
     } catch (error) {
       toast({ title: "خطأ", description: "لم نتمكن من إضافة التخصص. حاول مرة أخرى.", variant: "destructive" });
     } finally {
@@ -149,19 +162,18 @@ export function UniversitiesClientPage({ initialUniversities }: UniversitiesClie
   const handleApplyFilter = (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!selectedFilterValue) {
-        setDisplayedUniversities(initialUniversities || []);
-        return;
+      setDisplayedUniversities(mergeUniversities(allUniversities, universitiesWithSpecs));
+      return;
     }
     setIsApplyingFilter(true);
     let filtered: UniversityWithSpecializationsAdmin[] = [];
     if (searchMode === 'university') {
-      filtered = (initialUniversities || []).filter(uni => uni.id.toString() === selectedFilterValue);
+      filtered = mergeUniversities(allUniversities, universitiesWithSpecs).filter(uni => uni.id.toString() === selectedFilterValue);
     } else if (searchMode === 'specialization') {
-      // selectedFilterValue for specialization will be its name (from combobox value)
       const selectedSpecName = allSpecializationsData.find(s => s.id.toString() === selectedFilterValue)?.name;
       if(selectedSpecName){
-        filtered = (initialUniversities || []).filter(uni => 
-            Array.isArray(uni.specializations) && uni.specializations.some(spec => spec.name === selectedSpecName)
+        filtered = mergeUniversities(allUniversities, universitiesWithSpecs).filter(uni => 
+          Array.isArray(uni.specializations) && uni.specializations.some(spec => spec.name === selectedSpecName)
         );
       }
     }
@@ -171,17 +183,16 @@ export function UniversitiesClientPage({ initialUniversities }: UniversitiesClie
 
   const handleClearFilters = () => {
     setSelectedFilterValue('');
-    // setSearchMode('university'); // Optionally reset search mode
-    setDisplayedUniversities(initialUniversities || []);
+    setDisplayedUniversities(mergeUniversities(allUniversities, universitiesWithSpecs));
   };
 
   const filterOptions = useMemo(() => {
     if (searchMode === 'university') {
-      return (initialUniversities || []).map(uni => ({ value: uni.id.toString(), label: uni.name }));
+      return (allUniversities || []).map((uni: University) => ({ value: uni.id.toString(), label: uni.name }));
     } else { // specialization
-      return allSpecializationsData.map(spec => ({ value: spec.id.toString(), label: spec.name }));
+      return allSpecializationsData.map((spec: Specialization) => ({ value: spec.id.toString(), label: spec.name }));
     }
-  }, [searchMode, initialUniversities, allSpecializationsData]);
+  }, [searchMode, allUniversities, allSpecializationsData]);
   
   const isFilterActive = selectedFilterValue !== '';
   const isSearchButtonDisabled = !selectedFilterValue || isApplyingFilter || isLoadingAllSpecializations;
@@ -205,7 +216,7 @@ export function UniversitiesClientPage({ initialUniversities }: UniversitiesClie
       );
   }
   
-  if ((!initialUniversities || initialUniversities.length === 0) && !isLoadingUniversities) {
+  if ((!allUniversities || allUniversities.length === 0) && !isLoadingUniversities) {
     return (
       <div className="text-center py-10 text-muted-foreground">
         <Building size={48} className="mx-auto mb-2" />

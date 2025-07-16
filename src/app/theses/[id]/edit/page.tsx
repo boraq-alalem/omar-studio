@@ -15,13 +15,22 @@ export default async function EditThesisPage({ params }: { params: Promise<{ id:
 
   let thesisToEdit: Thesis | undefined = undefined;
   try {
-    const allTheses = await getLatestTheses(); 
-    thesisToEdit = allTheses.find((t: Thesis) => t.id === thesisId);
+    const allThesesResult = await getLatestTheses();
+    const allThesesArr = Array.isArray(allThesesResult)
+      ? allThesesResult
+      : Array.isArray(allThesesResult?.data)
+        ? allThesesResult.data
+        : [];
+    thesisToEdit = allThesesArr.find((t: Thesis) => t.id === thesisId);
     if (!thesisToEdit) {
-        const searchResults = await searchTheses({ title: resolvedParams.id }); 
-        thesisToEdit = searchResults.find((t: Thesis) => t.id === thesisId);
+      const searchResultsResult = await searchTheses({ title: resolvedParams.id });
+      const searchResultsArr = Array.isArray(searchResultsResult)
+        ? searchResultsResult
+        : Array.isArray(searchResultsResult?.data)
+          ? searchResultsResult.data
+          : [];
+      thesisToEdit = searchResultsArr.find((t: Thesis) => t.id === thesisId);
     }
-
   } catch (e) {
     console.error("Failed to fetch thesis data for editing:", e);
   }

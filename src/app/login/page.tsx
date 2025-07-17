@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -26,6 +26,9 @@ export default function LoginPage() {
   const router = useRouter();
   const { setApiUser, updateTokens } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [lockoutEndTime, setLockoutEndTime] = useState<number | null>(null);
+  const [remainingTime, setRemainingTime] = useState(0);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -35,38 +38,101 @@ export default function LoginPage() {
     },
   });
 
-  async function onSubmit(data: LoginFormValues) {
+  useEffect(() => {
+    const storedAttempts = localStorage.getItem('failedAttempts');
+    const storedLockoutEnd = localStorage.getItem('lockoutEndTime');
+
+    if (storedAttempts) {
+      setFailedAttempts(parseInt(storedAttempts, 10));
+    }
+    if (storedLockoutEnd) {
+      const endTime = parseInt(storedLockoutEnd, 10);
+      if (endTime > Date.now()) {
+        setLockoutEndTime(endTime);
+      } else {
+        // If lockout time has passed, clear storage
+        localStorage.removeItem('lockoutEndTime');
+        localStorage.removeItem('failedAttempts');
+        setFailedAttempts(0);
+        setLockoutEndTime(null);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (lockoutEndTime) {
+      const calculateRemainingTime = () => {
+        const now = Date.now();
+        const timeDiff = lockoutEndTime - now;
+        if (timeDiff <= 0) {
+          setLockoutEndTime(null);
+          setFailedAttempts(0);
+          setRemainingTime(0);
+          localStorage.removeItem('lockoutEndTime');
+          localStorage.removeItem('failedAttempts');
+          clearInterval(timer);
+        } else {
+          const minutes = Math.floor(timeDiff / (1000 * 60));
+          const seconds = Math.ceil((timeDiff % (1000 * 60)) / 1000);
+          setRemainingTime(minutes * 60 + seconds); // Store total seconds for easier display logic
+        }
+      };
+
+      calculateRemainingTime(); // Initial calculation
+      timer = setInterval(calculateRemainingTime, 1000);
+    }
+
+    return () => clearInterval(timer);
+  }, [lockoutEndTime]);
+
+  const handleLoginAttempt = useCallback(async (data: LoginFormValues) => {
     setIsSubmitting(true);
     try {
       const result = await login(data.email, data.password);
       
-      // Update auth context with user and tokens
+      // On successful login, reset failed attempts and lockout
+      localStorage.removeItem('failedAttempts');
+      localStorage.removeItem('lockoutEndTime');
+      setFailedAttempts(0);
+      setLockoutEndTime(null);
+
       setApiUser(result.user);
       updateTokens(result.localToken, result.remoteToken);
       
-      // Check if user has writer-titles role
       const hasWriterTitlesRole = result.user.roles.some(role => role.name === 'writer-titles');
       
       if (hasWriterTitlesRole && !result.localToken) {
-        toast({ 
-          title: "نجح تسجيل الدخول", 
-          description: `مرحباً ${result.user.name} - تم تسجيل الدخول مباشرة (مستخدم writer-titles)` 
+        toast({
+          title: "نجح تسجيل الدخول",
+          description: `مرحباً ${result.user.name} - تم تسجيل الدخول مباشرة (مستخدم writer-titles)`
         });
       } else {
-        toast({ 
-          title: "نجح تسجيل الدخول", 
-          description: `مرحباً ${result.user.name}` 
+        toast({
+          title: "نجح تسجيل الدخول",
+          description: `مرحباً ${result.user.name}`
         });
       }
       
-      // Redirect to dashboard
       router.push('/dashboard');
     } catch (error: any) {
       let errorMsg = error?.message || "فشل تسجيل الدخول.";
-      // تخصيص الرسالة إذا كانت المشكلة في البيانات
-      if (errorMsg.includes("يرجى إدخال معلومات صحيحة") || errorMsg.includes("Invalid credentials") || errorMsg.includes("unauthorized") || errorMsg.includes("401")) {
-        errorMsg = "بيانات الدخول غير صحيحة، يرجى التأكد من البريد الإلكتروني وكلمة المرور والمحاولة مرة أخرى.";
+      
+      // Increment failed attempts on failure
+      const newFailedAttempts = failedAttempts + 1;
+      setFailedAttempts(newFailedAttempts);
+      localStorage.setItem('failedAttempts', newFailedAttempts.toString());
+
+      if (newFailedAttempts >= 5) {
+        const lockoutDuration = 5 * 60 * 1000; // 5 minutes in milliseconds
+        const newLockoutEndTime = Date.now() + lockoutDuration;
+        setLockoutEndTime(newLockoutEndTime);
+        localStorage.setItem('lockoutEndTime', newLockoutEndTime.toString());
+        errorMsg = `لقد تجاوزت الحد الأقصى للمحاولات. يرجى المحاولة مرة أخرى بعد 10 دقائق.`;
+      } else if (errorMsg.includes("يرجى إدخال معلومات صحيحة") || errorMsg.includes("Invalid credentials") || errorMsg.includes("unauthorized") || errorMsg.includes("401")) {
+        errorMsg = `بيانات الدخول غير صحيحة. لديك ${5 - newFailedAttempts} محاولات متبقية.`;
       }
+      
       toast({
         title: "خطأ في تسجيل الدخول",
         description: errorMsg,
@@ -75,7 +141,19 @@ export default function LoginPage() {
     } finally {
       setIsSubmitting(false);
     }
-  }
+  }, [failedAttempts, setApiUser, updateTokens, toast, router]);
+
+  const onSubmit = useCallback(async (data: LoginFormValues) => {
+    if (lockoutEndTime && lockoutEndTime > Date.now()) {
+      toast({
+        title: "محاولات متكررة",
+        description: `يرجى الانتظار ${Math.floor(remainingTime / 60)} دقيقة و ${remainingTime % 60} ثانية قبل المحاولة مرة أخرى.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    await handleLoginAttempt(data);
+  }, [lockoutEndTime, handleLoginAttempt, toast]);
 
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden mobile-padding">
@@ -110,10 +188,11 @@ export default function LoginPage() {
                     <FormControl>
                       <div className="relative">
                         <Input 
-                          type="email" 
-                          placeholder="مثال: user@example.com" 
+                          type="email"
+                          placeholder="مثال: user@example.com"
                           className="h-12 pl-12 pr-4 text-base rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
-                          {...field} 
+                          {...field}
+                          disabled={!!lockoutEndTime}
                         />
                         <svg className="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
                           <path d="M12 12.713l-11.985-9.713h23.97l-11.985 9.713zm0 2.574l-12-9.725v15.438h24v-15.438l-12 9.725z"/>
@@ -132,11 +211,12 @@ export default function LoginPage() {
                     <FormLabel className="text-sm font-medium text-foreground">كلمة المرور</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <Input 
-                          type="password" 
-                          placeholder="********" 
+                        <Input
+                          type="password"
+                          placeholder="********"
                           className="h-12 pl-12 pr-4 text-base rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
-                          {...field} 
+                          {...field}
+                          disabled={!!lockoutEndTime}
                         />
                         <svg className="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
                           <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6z"/>
@@ -147,10 +227,20 @@ export default function LoginPage() {
                   </FormItem>
                 )}
               />
-              <Button 
-                type="submit" 
-                className="w-full h-12 text-base font-medium btn-gradient rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]" 
-                disabled={isSubmitting}
+              {lockoutEndTime && remainingTime > 0 && (
+                <p className="text-red-500 text-center text-sm">
+                  تم قفل تسجيل الدخول. يرجى المحاولة مرة أخرى بعد {Math.floor(remainingTime / 60)} دقيقة و {remainingTime % 60} ثانية.
+                </p>
+              )}
+              {!lockoutEndTime && failedAttempts > 0 && (
+                <p className="text-orange-500 text-center text-sm">
+                  لديك {5 - failedAttempts} محاولات متبقية قبل القفل.
+                </p>
+              )}
+              <Button
+                type="submit"
+                className="w-full h-12 text-base font-medium btn-gradient rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                disabled={isSubmitting || !!lockoutEndTime}
               >
                 {isSubmitting ? (
                   <>
@@ -166,8 +256,6 @@ export default function LoginPage() {
               </Button>
             </form>
           </Form>
-          
-
         </CardContent>
       </Card>
     </div>

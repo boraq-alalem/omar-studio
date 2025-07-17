@@ -125,6 +125,8 @@ export async function login(email: string, password: string): Promise<LoginRespo
   let localResponse: LoginResponse | null = null;
   let remoteResponse: LoginResponse | null = null;
   
+  let remoteError: any = null;
+  let localError: any = null;
   try {
     // Login to remote server first
     remoteResponse = await fetchApi<LoginResponse>(API_ENDPOINTS.LOGIN, {
@@ -133,10 +135,8 @@ export async function login(email: string, password: string): Promise<LoginRespo
     }, false);
     setRemoteToken(remoteResponse.access_token);
     remoteSuccess = true;
-    
     // Check if user has writer-titles role
     const hasWriterTitlesRole = remoteResponse.user.roles.some(role => role.name === 'writer-titles');
-    
     // If user has writer-titles role, skip local server login
     if (hasWriterTitlesRole) {
       console.log('User has writer-titles role, skipping local server login');
@@ -148,9 +148,10 @@ export async function login(email: string, password: string): Promise<LoginRespo
       };
     }
   } catch (error) {
+    remoteError = error;
     console.log('Failed to login to remote server:', error);
   }
-  
+
   // If not writer-titles or remote login failed, try local server
   try {
     // Login to local server
@@ -161,6 +162,7 @@ export async function login(email: string, password: string): Promise<LoginRespo
     setLocalToken(localResponse.access_token);
     localSuccess = true;
   } catch (error) {
+    localError = error;
     console.log('Failed to login to local server:', error);
   }
   
@@ -192,7 +194,24 @@ export async function login(email: string, password: string): Promise<LoginRespo
   setLocalToken(null);
   setRemoteToken(null);
   setCurrentApiUser(null);
-  
+
+  // إذا كان هناك استجابة أو خطأ من أي سيرفر وتحتوي على رسالة خطأ بيانات المستخدم أو كود 401
+  const isInvalidCreds = (obj: any) => {
+    if (!obj) return false;
+    if (typeof obj === 'string') return /invalid|غير صحيحة|unauthorized|401/i.test(obj);
+    if (obj.message && /invalid|غير صحيحة|unauthorized|401/i.test(obj.message)) return true;
+    if (obj.status && obj.status === 401) return true;
+    return false;
+  };
+  if (
+    isInvalidCreds(remoteResponse) ||
+    isInvalidCreds(localResponse) ||
+    isInvalidCreds(remoteError) ||
+    isInvalidCreds(localError)
+  ) {
+    throw new Error('يرجى إدخال معلومات صحيحة.');
+  }
+
   // Check if remote login succeeded but local failed
   if (remoteSuccess && !localSuccess) {
     const hasWriterTitlesRole = remoteResponse!.user.roles.some(role => role.name === 'writer-titles');
@@ -200,7 +219,8 @@ export async function login(email: string, password: string): Promise<LoginRespo
       throw new Error('فشل تسجيل الدخول. الخادم المحلي غير متاح حالياً.');
     }
   }
-  
+
+  // إذا كان الخطأ من الاتصال بالخوادم
   throw new Error('فشل تسجيل الدخول. يجب أن تكون جميع الخوادم متصلة للمتابعة.');
 }
 

@@ -62,9 +62,14 @@ export default function LoginPage() {
       // Redirect to dashboard
       router.push('/dashboard');
     } catch (error: any) {
+      let errorMsg = error?.message || "فشل تسجيل الدخول.";
+      // تخصيص الرسالة إذا كانت المشكلة في البيانات
+      if (errorMsg.includes("يرجى إدخال معلومات صحيحة") || errorMsg.includes("Invalid credentials") || errorMsg.includes("unauthorized") || errorMsg.includes("401")) {
+        errorMsg = "بيانات الدخول غير صحيحة، يرجى التأكد من البريد الإلكتروني وكلمة المرور والمحاولة مرة أخرى.";
+      }
       toast({
         title: "خطأ في تسجيل الدخول",
-        description: error.message || "فشل تسجيل الدخول.",
+        description: errorMsg,
         variant: "destructive",
       });
     } finally {
@@ -162,22 +167,7 @@ export default function LoginPage() {
             </form>
           </Form>
           
-          <div className="mt-8 p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-xl border border-blue-200/50 dark:border-blue-700/50">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce-gentle"></div>
-              <h4 className="font-medium text-blue-700 dark:text-blue-300">بيانات تجريبية</h4>
-            </div>
-            <div className="text-sm text-blue-600 dark:text-blue-400 space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="font-medium">البريد:</span>
-                <code className="bg-white/50 dark:bg-gray-800/50 px-2 py-1 rounded text-xs">boraq@gmail.com</code>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="font-medium">كلمة المرور:</span>
-                <code className="bg-white/50 dark:bg-gray-800/50 px-2 py-1 rounded text-xs">11223344</code>
-              </div>
-            </div>
-          </div>
+
         </CardContent>
       </Card>
     </div>

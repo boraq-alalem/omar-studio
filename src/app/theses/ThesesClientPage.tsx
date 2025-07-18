@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Archive, Edit, FileText, Search, Trash2, Download, FilterX } from 'lucide-react';
+import { Archive, Edit, FileText, Search, Trash2, Download, FilterX, Eye } from 'lucide-react';
 import Link from 'next/link';
 import type { Thesis, University, Specialization, Degree, ThesisYear, ThesisResponse } from '@/types/api';
 import { searchTheses as apiSearchTheses, archiveThesisBoth, getLatestTheses, getRemoteIdByLocalId } from '@/lib/api';
@@ -317,8 +317,8 @@ export function ThesesClientPage({ initialTheses, universities, specializations,
                     <TableCell className="border border-gray-200">{thesis.year}</TableCell>
                     <TableCell className="border border-gray-200 space-x-1 whitespace-nowrap">
                       <Button variant="ghost" size="icon" asChild>
-                        <a href={`${thesis.pdf_path}`} target="_blank" rel="noopener noreferrer" aria-label="Download PDF">
-                          <Download className="h-4 w-4 text-blue-500" />
+                        <a href={`http://server:8000${thesis.pdf_path}`} target="_blank" rel="noopener noreferrer" aria-label="View Thesis">
+                          <Eye className="h-4 w-4 text-blue-500" />
                         </a>
                       </Button>
                       <Button variant="ghost" size="icon" asChild>
@@ -398,7 +398,7 @@ export function ThesesClientPage({ initialTheses, universities, specializations,
                   
                   <div className="flex gap-2 pt-3 border-t border-border/30">
                     <Button variant="outline" size="sm" asChild className="flex-1 h-9 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 dark:hover:bg-blue-900/20">
-                      <a href={`${thesis.pdf_path}`} target="_blank" rel="noopener noreferrer">
+                      <a href={`server:8000${thesis.pdf_path}`} target="_blank" rel="noopener noreferrer">
                         <Download className="h-4 w-4 mr-2" />
                         تحميل
                       </a>

@@ -14,7 +14,7 @@ import { Loader2 } from 'lucide-react';
 
 const passwordFormSchema = z.object({
   currentPassword: z.string().min(1, { message: "كلمة المرور الحالية مطلوبة." }),
-  newPassword: z.string().min(6, { message: "كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل." }),
+  newPassword: z.string().min(8, { message: "كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل." }),
   confirmPassword: z.string(),
 }).refine((data) => data.newPassword === data.confirmPassword, {
   message: "كلمتا المرور الجديدتان غير متطابقتين.",

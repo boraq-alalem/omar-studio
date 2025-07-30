@@ -11,6 +11,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { CalendarIcon, Loader2 } from "lucide-react";
+import { PlusCircle } from "lucide-react";
+import { Dialog, DialogTrigger, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { UniversityForm } from '@/components/manage-data/UniversityForm';
+import { SpecializationForm } from '@/components/manage-data/SpecializationForm';
 import { format } from "date-fns";
 import { arSA } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
@@ -36,12 +40,15 @@ interface ReservedTitleFormProps {
 }
 
 export function ReservedTitleForm({ initialData }: ReservedTitleFormProps) {
+  // إضافة حالة لإظهار نموذج إضافة جامعة وتخصص
+  const [addUniversityOpen, setAddUniversityOpen] = useState(false);
+  const [addSpecializationOpen, setAddSpecializationOpen] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   
-  const [universitiesWithSpecs, setUniversitiesWithSpecs] = useState<UniversityWithSpecializationsAdmin[]>([]);
-  const [availableSpecializations, setAvailableSpecializations] = useState<SpecializationType[]>([]);
+  const [allUniversities, setAllUniversities] = useState<UniversityWithSpecializationsAdmin[]>([]);
+  const [allSpecializations, setAllSpecializations] = useState<SpecializationType[]>([]);
   const [degrees, setDegrees] = useState<Degree[]>([]);
   const [isLoadingDropdowns, setIsLoadingDropdowns] = useState(true);
 
@@ -67,9 +74,20 @@ export function ReservedTitleForm({ initialData }: ReservedTitleFormProps) {
           getUniversitiesWithSpecializationsAdmin(),
           getDegrees()
         ]);
-        
-        setUniversitiesWithSpecs(univs);
+        setAllUniversities(Array.isArray(univs) ? univs : []);
         setDegrees(fetchedDegrees);
+        // جمع كل التخصصات من جميع الجامعات
+        const specs: SpecializationType[] = [];
+        if (Array.isArray(univs)) {
+          univs.forEach(u => {
+            if (Array.isArray(u.specializations)) {
+              u.specializations.forEach(s => {
+                if (!specs.find(ss => ss.id === s.id)) specs.push(s);
+              });
+            }
+          });
+        }
+        setAllSpecializations(specs);
 
         if (initialData) {
             form.setValue('title', initialData.title);
@@ -77,6 +95,11 @@ export function ReservedTitleForm({ initialData }: ReservedTitleFormProps) {
             const foundUniv = univs.find(u => u.name === initialData.university);
             if (foundUniv) {
               form.setValue('university_id', foundUniv.id.toString());
+            }
+            // تعيين التخصص مباشرة من كل التخصصات
+            const foundSpec = specs.find(s => s.name === initialData.specialization);
+            if (foundSpec) {
+              form.setValue('specialization_id', foundSpec.id.toString());
             }
             form.setValue('degree', initialData.degree);
             if (initialData.date) {
@@ -99,40 +122,7 @@ export function ReservedTitleForm({ initialData }: ReservedTitleFormProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialData]); 
 
-  const watchedUniversityId = form.watch('university_id');
-
-  useEffect(() => {
-    if (watchedUniversityId && universitiesWithSpecs.length > 0) {
-      const selectedUniv = universitiesWithSpecs.find(uni => uni.id.toString() === watchedUniversityId);
-      const newAvailableSpecializations = selectedUniv ? selectedUniv.specializations : [];
-      setAvailableSpecializations(newAvailableSpecializations);
-      
-      const currentSpecIdFromForm = form.getValues('specialization_id');
-
-      if (initialData?.specialization && selectedUniv && selectedUniv.name === initialData.university) {
-        const foundSpec = newAvailableSpecializations.find(s => s.name === initialData.specialization);
-        if (foundSpec) {
-          if(currentSpecIdFromForm !== foundSpec.id.toString()){
-             form.setValue('specialization_id', foundSpec.id.toString());
-          }
-        } else {
-           if(currentSpecIdFromForm !== ''){
-            form.setValue('specialization_id', ''); 
-           }
-        }
-      } else {
-        if (currentSpecIdFromForm && !newAvailableSpecializations.find(s => s.id.toString() === currentSpecIdFromForm)) {
-          form.setValue('specialization_id', '');
-        }
-      }
-    } else {
-      setAvailableSpecializations([]);
-       if(form.getValues('specialization_id') !== ''){
-        form.setValue('specialization_id', '');
-      }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [watchedUniversityId, universitiesWithSpecs, initialData?.university, initialData?.specialization]);
+  // لم يعد هناك حاجة لتصفية التخصصات حسب الجامعة
 
 
   async function onSubmit(data: ReservedTitleFormValues) {
@@ -147,9 +137,8 @@ export function ReservedTitleForm({ initialData }: ReservedTitleFormProps) {
       }
     }
 
-    const selectedUniversity = universitiesWithSpecs.find(u => u.id.toString() === data.university_id);
-    const selectedSpecialization = availableSpecializations.find(s => s.id.toString() === data.specialization_id);
-    
+    const selectedUniversity = allUniversities.find(u => u.id.toString() === data.university_id);
+    const selectedSpecialization = allSpecializations.find(s => s.id.toString() === data.specialization_id);
     if (!selectedUniversity || !selectedSpecialization) {
       toast({ title: "خطأ", description: "الرجاء اختيار جامعة وتخصص صالحين.", variant: "destructive" });
       setIsSubmitting(false);
@@ -193,8 +182,8 @@ export function ReservedTitleForm({ initialData }: ReservedTitleFormProps) {
   }
   
   useEffect(() => { 
-    if (initialData && universitiesWithSpecs.length > 0 && degrees.length > 0) {
-        const univMatch = universitiesWithSpecs.find(u => u.name === initialData.university);
+    if (initialData && allUniversities.length > 0 && degrees.length > 0) {
+        const univMatch = allUniversities.find(u => u.name === initialData.university);
         const degreeMatch = initialData.degree;
 
         const dateToSet = initialData.date 
@@ -220,10 +209,12 @@ export function ReservedTitleForm({ initialData }: ReservedTitleFormProps) {
         form.reset(defaultValues);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialData, universitiesWithSpecs, degrees]);
+  }, [initialData, allUniversities, degrees]);
 
-  const universityOptions = universitiesWithSpecs.map(uni => ({ value: uni.id.toString(), label: uni.name }));
-  const specializationOptions = availableSpecializations.map(spec => ({ value: spec.id.toString(), label: spec.name }));
+  
+  // عرض جميع الجامعات بدون تصفية
+  const universityOptions = allUniversities.map(uni => ({ value: uni.id.toString(), label: uni.name }));
+  const specializationOptions = allSpecializations.map(spec => ({ value: spec.id.toString(), label: spec.name }));
   const degreeOptions = degrees.map(deg => ({ value: deg.name, label: deg.name }));
 
 
@@ -271,16 +262,39 @@ export function ReservedTitleForm({ initialData }: ReservedTitleFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>الجامعة</FormLabel>
-                    <Combobox
-                      options={universityOptions}
-                      value={field.value}
-                      onChange={(value) => {
-                        field.onChange(value);
-                        form.setValue('specialization_id', ''); // Reset specialization
-                      }}
-                      placeholder={isLoadingDropdowns ? "جاري التحميل..." : universityOptions.length === 0 ? "لا توجد جامعات" : "اختر الجامعة"}
-                      disabled={isLoadingDropdowns || universityOptions.length === 0}
-                    />
+                    <div className="flex gap-2 items-center">
+                      <Combobox
+                        options={universityOptions}
+                        value={field.value}
+                        onChange={(value) => {
+                          field.onChange(value);
+                          form.setValue('specialization_id', ''); // Reset specialization
+                        }}
+                        placeholder={isLoadingDropdowns ? "جاري التحميل..." : universityOptions.length === 0 ? "لا توجد جامعات" : "اختر الجامعة"}
+                        disabled={isLoadingDropdowns || universityOptions.length === 0}
+                      />
+                      <Dialog open={addUniversityOpen} onOpenChange={setAddUniversityOpen}>
+                        <DialogTrigger asChild>
+                          <Button type="button" variant="outline" size="sm" title="إضافة جامعة جديدة">
+                            <PlusCircle className="h-5 w-5" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogTitle>إضافة جامعة جديدة</DialogTitle>
+                      <UniversityForm
+                            onSuccess={async () => {
+                              setAddUniversityOpen(false);
+                              setIsLoadingDropdowns(true);
+                              const univs = await getUniversitiesWithSpecializationsAdmin();
+                              setAllUniversities(univs);
+                              setIsLoadingDropdowns(false);
+                              toast({ title: "نجاح", description: "تمت إضافة الجامعة." });
+                            }}
+                            onCancel={() => setAddUniversityOpen(false)}
+                          />
+                        </DialogContent>
+                      </Dialog>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -294,18 +308,43 @@ export function ReservedTitleForm({ initialData }: ReservedTitleFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>التخصص</FormLabel>
-                     <Combobox
-                      options={specializationOptions}
-                      value={field.value}
-                      onChange={field.onChange}
-                      placeholder={
-                        isLoadingDropdowns ? "جاري التحميل..." :
-                        !watchedUniversityId ? "اختر جامعة أولاً" :
-                        specializationOptions.length === 0 ? "لا توجد تخصصات" :
-                        "اختر التخصص"
-                      }
-                      disabled={isLoadingDropdowns || !watchedUniversityId || specializationOptions.length === 0}
-                    />
+                    <div className="flex gap-2 items-center">
+                      <Combobox
+                        options={specializationOptions}
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder={isLoadingDropdowns ? "جاري التحميل..." : specializationOptions.length === 0 ? "لا توجد تخصصات" : "اختر التخصص"}
+                        disabled={isLoadingDropdowns || specializationOptions.length === 0}
+                      />
+                      <Dialog open={addSpecializationOpen} onOpenChange={setAddSpecializationOpen}>
+                        <DialogTrigger asChild>
+                          <Button type="button" variant="outline" size="sm" title="إضافة تخصص جديد">
+                            <PlusCircle className="h-5 w-5" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogTitle>إضافة تخصص جديد</DialogTitle>
+                          <SpecializationForm
+                            onSuccess={async () => {
+                              setAddSpecializationOpen(false);
+                              setIsLoadingDropdowns(true);
+                              const univs = await getUniversitiesWithSpecializationsAdmin();
+                              // جمع كل التخصصات من جميع الجامعات
+                              const specs: SpecializationType[] = [];
+                              univs.forEach(u => {
+                                u.specializations.forEach(s => {
+                                  if (!specs.find(ss => ss.id === s.id)) specs.push(s);
+                                });
+                              });
+                              setAllSpecializations(specs);
+                              setIsLoadingDropdowns(false);
+                              toast({ title: "نجاح", description: "تمت إضافة التخصص." });
+                            }}
+                            onCancel={() => setAddSpecializationOpen(false)}
+                          />
+                        </DialogContent>
+                      </Dialog>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}

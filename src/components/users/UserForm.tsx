@@ -19,7 +19,7 @@ import { Loader2 } from 'lucide-react';
 const createUserSchema = z.object({
   name: z.string().min(2, { message: "اسم المستخدم يجب أن يكون حرفين على الأقل." }),
   email: z.string().email({ message: "الرجاء إدخال بريد إلكتروني صحيح." }),
-  password: z.string().min(6, { message: "كلمة المرور يجب أن تكون 6 أحرف على الأقل." }),
+  password: z.string().min(8, { message: "كلمة المرور يجب أن تكون 8 أحرف على الأقل." }),
   role_id: z.number({ required_error: "الرجاء اختيار نوع المستخدم." }),
 });
 
@@ -210,7 +210,7 @@ export function UserForm({ initialData, onSuccess, onCancel }: UserFormProps) {
                 <FormControl>
                   <Input type="password" placeholder="********" {...field} />
                 </FormControl>
-                <FormDescription>يجب أن تكون كلمة المرور 6 أحرف على الأقل.</FormDescription>
+                <FormDescription>يجب أن تكون كلمة المرور 8 أحرف على الأقل.</FormDescription>
                 <FormMessage />
               </FormItem>
             )}

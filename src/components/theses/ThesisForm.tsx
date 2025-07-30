@@ -11,15 +11,19 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { CalendarIcon, Loader2 } from "lucide-react";
+import { PlusCircle } from "lucide-react";
 import { format } from "date-fns";
 import { arSA } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import type { Thesis, Degree, UniversityWithSpecializationsAdmin, Specialization as SpecializationType } from "@/types/api";
-import { addThesisBoth, updateThesisBoth, getUniversitiesWithSpecializationsAdmin, getDegrees, checkThesisTitleExists, sendUuidsToBothServers, getRemoteIdByLocalId } from "@/lib/api";
+import { addThesisBoth, updateThesisBoth, getUniversitiesWithSpecializationsAdmin, getDegrees, checkThesisTitleExists, sendUuidsToBothServers, getRemoteIdByLocalId, getUniversities, getSpecializations, addSpecializationToUniversity } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Combobox } from "@/components/ui/combobox"; // Added Combobox import
 import { API_ENDPOINTS, EXTERNAL_LINKS } from '@/lib/endpoints';
+import { UniversityForm } from '@/components/manage-data/UniversityForm';
+import { SpecializationForm } from '@/components/manage-data/SpecializationForm';
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 const thesisFormSchema = z.object({
   title: z.string().min(5, { message: "العنوان يجب أن يكون 5 أحرف على الأقل." }),
@@ -39,12 +43,15 @@ interface ThesisFormProps {
 }
 
 export function ThesisForm({ initialData, degrees }: ThesisFormProps) {
+  // إضافة حالة لإظهار نموذج إضافة جامعة وتخصص في Dialog
+  const [addUniversityOpen, setAddUniversityOpen] = useState(false);
+  const [addSpecializationOpen, setAddSpecializationOpen] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   
-  const [universitiesWithSpecs, setUniversitiesWithSpecs] = useState<UniversityWithSpecializationsAdmin[]>([]);
-  const [availableSpecializations, setAvailableSpecializations] = useState<SpecializationType[]>([]);
+  const [allUniversities, setAllUniversities] = useState<UniversityWithSpecializationsAdmin[]>([]);
+  const [allSpecializations, setAllSpecializations] = useState<SpecializationType[]>([]);
   const [degreesState, setDegrees] = useState<Degree[]>(degrees || []);
   const [isLoadingDropdowns, setIsLoadingDropdowns] = useState(true);
 
@@ -78,46 +85,51 @@ export function ThesisForm({ initialData, degrees }: ThesisFormProps) {
       try {
         let fetchedDegrees = degrees;
         let univs;
+        let specs;
         if (!degrees) {
-          [univs, fetchedDegrees] = await Promise.all([
-            getUniversitiesWithSpecializationsAdmin(),
+          [univs, specs, fetchedDegrees] = await Promise.all([
+            getUniversities(),
+            getSpecializations(),
             getDegrees()
           ]);
         } else {
-          univs = await getUniversitiesWithSpecializationsAdmin();
+          [univs, specs] = await Promise.all([
+            getUniversities(),
+            getSpecializations()
+          ]);
         }
-        setUniversitiesWithSpecs(univs);
+        // Handle fetchApiBoth result
+        let universitiesList = [];
+        if (univs && typeof univs === 'object' && 'local' in univs && 'remote' in univs) {
+          const localUnis = Array.isArray(univs.local) ? univs.local : [];
+          const remoteUnis = Array.isArray(univs.remote) ? univs.remote : [];
+          universitiesList = localUnis.filter(lu => remoteUnis.some(ru => ru.id === lu.id));
+        } else if (Array.isArray(univs)) {
+          universitiesList = univs;
+        }
+        setAllUniversities(universitiesList);
+        // Specializations
+        let specsList = [];
+        if (specs && typeof specs === 'object' && 'local' in specs && 'remote' in specs) {
+          const localSpecs = Array.isArray(specs.local) ? specs.local : [];
+          const remoteSpecs = Array.isArray(specs.remote) ? specs.remote : [];
+          specsList = localSpecs.filter(ls => remoteSpecs.some(rs => rs.id === ls.id));
+        } else if (Array.isArray(specs)) {
+          specsList = specs;
+        }
+        setAllSpecializations(specsList);
         setDegrees(fetchedDegrees || []);
       } catch (err) {
-        toast({ title: "خطأ", description: "فشل تحميل بيانات الجامعات أو الدرجات.", variant: "destructive" });
+        toast({ title: "خطأ", description: "فشل تحميل بيانات الجامعات أو التخصصات أو الدرجات.", variant: "destructive" });
       } finally {
         setIsLoadingDropdowns(false);
       }
     }
     fetchData();
-  }, [degrees]); 
+  }, [degrees]);
 
   const watchedUniversityId = form.watch('university_id');
-
-  useEffect(() => {
-    if (watchedUniversityId && universitiesWithSpecs.length > 0) {
-      const selectedUniv = universitiesWithSpecs.find(uni => uni.id.toString() === watchedUniversityId);
-      const newAvailableSpecializations = selectedUniv ? selectedUniv.specializations : [];
-      setAvailableSpecializations(newAvailableSpecializations);
-      
-      const currentSpecId = form.getValues('specialization_id');
-      if (newAvailableSpecializations.length > 0 && !newAvailableSpecializations.find(s => s.id.toString() === currentSpecId)) {
-         form.setValue('specialization_id', '');
-      } else if (newAvailableSpecializations.length === 0) {
-        form.setValue('specialization_id', '');
-      }
-    } else {
-      setAvailableSpecializations([]);
-      if (form.getValues('specialization_id') !== '') {
-        form.setValue('specialization_id', '');
-      }
-    }
-  }, [watchedUniversityId, universitiesWithSpecs]);
+  // لم يعد هناك حاجة لتصفية التخصصات حسب الجامعة
 
 
   async function onSubmit(data: ThesisFormValues) {
@@ -135,7 +147,7 @@ export function ThesisForm({ initialData, degrees }: ThesisFormProps) {
 
     try {
       if (initialData) {
-        // استخراج المعرفات من window.history.state.usr أو من initialData
+        // ...existing code...
         let idLocal = initialData.id;
         let idRemote: string | null = null;
         if (typeof window !== 'undefined') {
@@ -146,14 +158,9 @@ export function ThesisForm({ initialData, degrees }: ThesisFormProps) {
             if (nav.id_remote) idRemote = nav.id_remote;
           }
         }
-        
-        // إذا لم يتم تمرير id_remote من state، جلبه من API
         if (!idRemote) {
           idRemote = await getRemoteIdByLocalId(idLocal);
         }
-        
-        console.log('Updating thesis - Local ID:', idLocal, 'Remote ID:', idRemote);
-        
         await updateThesisBoth(idLocal, idRemote, formData);
         toast({ title: "نجاح", description: "تم تعديل الرسالة بنجاح في كل الخوادم." });
       } else {
@@ -168,6 +175,17 @@ export function ThesisForm({ initialData, degrees }: ThesisFormProps) {
           setIsSubmitting(false);
           return;
         }
+        // تحقق من ارتباط التخصص بالجامعة
+        const selectedUniversity = allUniversities.find(u => u.id.toString() === data.university_id);
+        const selectedSpecialization = allSpecializations.find(s => s.id.toString() === data.specialization_id);
+        let isLinked = false;
+        if (selectedUniversity && selectedSpecialization) {
+          isLinked = Array.isArray(selectedUniversity.specializations) && selectedUniversity.specializations.some(s => s.id === selectedSpecialization.id);
+        }
+        if (!isLinked && selectedUniversity && selectedSpecialization) {
+          // أضف التخصص للجامعة أولاً
+          await addSpecializationToUniversity(selectedUniversity.id, { specialization_id: selectedSpecialization.id });
+        }
         // إضافة الرسالة في كل خادم وجمع المعرفات
         const { id_local, id_remote } = await addThesisBoth(formData);
         if (id_local && id_remote) {
@@ -176,7 +194,7 @@ export function ThesisForm({ initialData, degrees }: ThesisFormProps) {
         toast({ title: "نجاح", description: "تمت إضافة الرسالة بنجاح." });
       }
       router.push("/theses");
-      router.refresh(); 
+      router.refresh();
     } catch (error: any) {
       toast({
         title: "خطأ",
@@ -188,8 +206,9 @@ export function ThesisForm({ initialData, degrees }: ThesisFormProps) {
     }
   }
 
-  const universityOptions = universitiesWithSpecs.map(uni => ({ value: uni.id.toString(), label: uni.name }));
-  const specializationOptions = availableSpecializations.map(spec => ({ value: spec.id.toString(), label: spec.name }));
+  // تم حذف التكرار: استخدم فقط allUniversities
+  const universityOptions = allUniversities.map(uni => ({ value: uni.id.toString(), label: uni.name }));
+  const specializationOptions = allSpecializations.map(spec => ({ value: spec.id.toString(), label: spec.name }));
   const degreeOptions = degreesState.map(deg => ({ value: deg.id.toString(), label: deg.name }));
 
 
@@ -275,16 +294,47 @@ export function ThesisForm({ initialData, degrees }: ThesisFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>الجامعة</FormLabel>
-                    <Combobox
-                      options={universityOptions}
-                      value={field.value}
-                      onChange={(value) => {
-                        field.onChange(value);
-                        form.setValue('specialization_id', ''); 
-                      }}
-                      placeholder={isLoadingDropdowns ? "جاري التحميل..." : universityOptions.length === 0 ? "لا توجد جامعات" : "اختر الجامعة"}
-                      disabled={isLoadingDropdowns || universityOptions.length === 0}
-                    />
+                    <div className="flex gap-2 items-center">
+                      <Combobox
+                        options={universityOptions}
+                        value={field.value}
+                        onChange={(value) => {
+                          field.onChange(value);
+                          form.setValue('specialization_id', ''); 
+                        }}
+                        placeholder={isLoadingDropdowns ? "جاري التحميل..." : universityOptions.length === 0 ? "لا توجد جامعات" : "اختر الجامعة"}
+                        disabled={isLoadingDropdowns || universityOptions.length === 0}
+                      />
+                      <Dialog open={addUniversityOpen} onOpenChange={setAddUniversityOpen}>
+                        <DialogTrigger asChild>
+                          <Button type="button" variant="outline" size="sm" title="إضافة جامعة جديدة">
+                            <PlusCircle className="h-5 w-5" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogTitle>إضافة جامعة جديدة</DialogTitle>
+                          <UniversityForm
+                            onSuccess={async () => {
+                              setAddUniversityOpen(false);
+                              setIsLoadingDropdowns(true);
+                              const univs = await getUniversities();
+                              let universitiesList = [];
+                              if (univs && typeof univs === 'object' && 'local' in univs && 'remote' in univs) {
+                                const localUnis = Array.isArray(univs.local) ? univs.local : [];
+                                const remoteUnis = Array.isArray(univs.remote) ? univs.remote : [];
+                                universitiesList = localUnis.filter(lu => remoteUnis.some(ru => ru.id === lu.id));
+                              } else if (Array.isArray(univs)) {
+                                universitiesList = univs;
+                              }
+                              setAllUniversities(universitiesList);
+                              setIsLoadingDropdowns(false);
+                              toast({ title: "نجاح", description: "تمت إضافة الجامعة." });
+                            }}
+                            onCancel={() => setAddUniversityOpen(false)}
+                          />
+                        </DialogContent>
+                      </Dialog>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -295,18 +345,44 @@ export function ThesisForm({ initialData, degrees }: ThesisFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>التخصص</FormLabel>
-                    <Combobox
-                      options={specializationOptions}
-                      value={field.value}
-                      onChange={field.onChange}
-                      placeholder={
-                        isLoadingDropdowns ? "جاري التحميل..." :
-                        !watchedUniversityId ? "اختر جامعة أولاً" :
-                        specializationOptions.length === 0 ? "لا توجد تخصصات" :
-                        "اختر التخصص"
-                      }
-                      disabled={isLoadingDropdowns || !watchedUniversityId || specializationOptions.length === 0}
-                    />
+                    <div className="flex gap-2 items-center">
+                      <Combobox
+                        options={specializationOptions}
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder={isLoadingDropdowns ? "جاري التحميل..." : specializationOptions.length === 0 ? "لا توجد تخصصات" : "اختر التخصص"}
+                        disabled={isLoadingDropdowns || specializationOptions.length === 0}
+                      />
+                      <Dialog open={addSpecializationOpen} onOpenChange={setAddSpecializationOpen}>
+                        <DialogTrigger asChild>
+                          <Button type="button" variant="outline" size="sm" title="إضافة تخصص جديد">
+                            <PlusCircle className="h-5 w-5" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogTitle>إضافة تخصص جديد</DialogTitle>
+                          <SpecializationForm
+                            onSuccess={async () => {
+                              setAddSpecializationOpen(false);
+                              setIsLoadingDropdowns(true);
+                              const specs = await getSpecializations();
+                              let specsList = [];
+                              if (specs && typeof specs === 'object' && 'local' in specs && 'remote' in specs) {
+                                const localSpecs = Array.isArray(specs.local) ? specs.local : [];
+                                const remoteSpecs = Array.isArray(specs.remote) ? specs.remote : [];
+                                specsList = localSpecs.filter(ls => remoteSpecs.some(rs => rs.id === ls.id));
+                              } else if (Array.isArray(specs)) {
+                                specsList = specs;
+                              }
+                              setAllSpecializations(specsList);
+                              setIsLoadingDropdowns(false);
+                              toast({ title: "نجاح", description: "تمت إضافة التخصص." });
+                            }}
+                            onCancel={() => setAddSpecializationOpen(false)}
+                          />
+                        </DialogContent>
+                      </Dialog>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}

@@ -20,7 +20,7 @@ import { arSA } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import type { ReservedThesisTitle, UniversityWithSpecializationsAdmin, Specialization as SpecializationType, Degree } from "@/types/api";
-import { addReservedTitle, updateReservedTitle, getUniversitiesWithSpecializationsAdmin, getDegrees, checkReservedTitleExists } from "@/lib/api";
+import { addReservedTitle, updateReservedTitle, getUniversities, getDegrees, checkReservedTitleExists } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Combobox } from "@/components/ui/combobox"; // Added Combobox import
 
@@ -47,7 +47,7 @@ export function ReservedTitleForm({ initialData }: ReservedTitleFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   
-  const [allUniversities, setAllUniversities] = useState<UniversityWithSpecializationsAdmin[]>([]);
+  const [allUniversities, setAllUniversities] = useState<any[]>([]); // University[]
   const [allSpecializations, setAllSpecializations] = useState<SpecializationType[]>([]);
   const [degrees, setDegrees] = useState<Degree[]>([]);
   const [isLoadingDropdowns, setIsLoadingDropdowns] = useState(true);
@@ -71,23 +71,13 @@ export function ReservedTitleForm({ initialData }: ReservedTitleFormProps) {
       setIsLoadingDropdowns(true);
       try {
         const [univs, fetchedDegrees] = await Promise.all([
-          getUniversitiesWithSpecializationsAdmin(),
+          getUniversities(),
           getDegrees()
         ]);
         setAllUniversities(Array.isArray(univs) ? univs : []);
         setDegrees(fetchedDegrees);
-        // جمع كل التخصصات من جميع الجامعات
-        const specs: SpecializationType[] = [];
-        if (Array.isArray(univs)) {
-          univs.forEach(u => {
-            if (Array.isArray(u.specializations)) {
-              u.specializations.forEach(s => {
-                if (!specs.find(ss => ss.id === s.id)) specs.push(s);
-              });
-            }
-          });
-        }
-        setAllSpecializations(specs);
+        // لا يوجد تخصصات في كل الجامعات، لذلك التخصصات تبقى فارغة
+        setAllSpecializations([]);
 
         if (initialData) {
             form.setValue('title', initialData.title);
@@ -285,7 +275,7 @@ export function ReservedTitleForm({ initialData }: ReservedTitleFormProps) {
                             onSuccess={async () => {
                               setAddUniversityOpen(false);
                               setIsLoadingDropdowns(true);
-                              const univs = await getUniversitiesWithSpecializationsAdmin();
+                              const univs = await getUniversities();
                               setAllUniversities(univs);
                               setIsLoadingDropdowns(false);
                               toast({ title: "نجاح", description: "تمت إضافة الجامعة." });
@@ -328,15 +318,7 @@ export function ReservedTitleForm({ initialData }: ReservedTitleFormProps) {
                             onSuccess={async () => {
                               setAddSpecializationOpen(false);
                               setIsLoadingDropdowns(true);
-                              const univs = await getUniversitiesWithSpecializationsAdmin();
-                              // جمع كل التخصصات من جميع الجامعات
-                              const specs: SpecializationType[] = [];
-                              univs.forEach(u => {
-                                u.specializations.forEach(s => {
-                                  if (!specs.find(ss => ss.id === s.id)) specs.push(s);
-                                });
-                              });
-                              setAllSpecializations(specs);
+                              // لا حاجة لجلب الجامعات هنا، فقط إعادة تحميل التخصصات إذا لزم
                               setIsLoadingDropdowns(false);
                               toast({ title: "نجاح", description: "تمت إضافة التخصص." });
                             }}

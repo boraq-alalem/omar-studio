@@ -362,7 +362,7 @@ export function ThesesClientPage({ initialTheses, universities, specializations,
           {/* Mobile Cards */}
           <div className="md:hidden space-y-4">
             {theses.map((thesis, index) => (
-              <Card key={thesis.id} className="p-4 rounded-2xl border border-border/50 bg-card shadow-modern-lg" style={{ animationDelay: `${index * 0.1}s` }}>
+              <Card key={thesis.id} className="p-4 rounded-2xl border border-border/50 bg-card shadow-modern-lg">
                 <div className="space-y-3">
                   <div className="space-y-2">
                     <h4 className="font-semibold text-base leading-tight line-clamp-2 text-right">

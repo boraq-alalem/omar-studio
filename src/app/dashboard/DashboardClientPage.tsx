@@ -91,7 +91,7 @@ export function DashboardClientPage({ initialStats, initialError }: DashboardCli
         {/* Loading Stats Grid */}
         <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {[...Array(6)].map((_, i) => (
-            <Card key={i} className="card-modern shadow-modern animate-pulse" style={{ animationDelay: `${i * 0.1}s` }}>
+            <Card key={i} className="card-modern shadow-modern animate-pulse">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
                 <Skeleton className="h-5 w-2/5 rounded-lg" />
                 <div className="p-2 rounded-xl bg-gray-200 dark:bg-gray-700">

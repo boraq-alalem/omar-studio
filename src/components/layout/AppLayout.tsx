@@ -151,7 +151,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <SidebarInset className="flex flex-col min-h-screen bg-gradient-to-br from-background to-background/95">
           <AppHeader />
           <main className="flex-1 mobile-padding py-6 pb-20 md:pb-6 overflow-auto">
-            <div className="animate-fade-in">
+            <div>
               {children}
             </div>
           </main>

@@ -40,7 +40,7 @@ export function SidebarNav() {
       {visibleNavItems.map((item, index) => {
         const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
         return (
-          <SidebarMenuItem key={item.href} className="animate-fade-in" style={{ animationDelay: `${index * 0.1}s` }}>
+          <SidebarMenuItem key={item.href} className="animate-fade-in">
             <Link href={item.href}>
               <SidebarMenuButton
                 variant="default"

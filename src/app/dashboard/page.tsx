@@ -1,4 +1,5 @@
 
+export const dynamic = 'force-dynamic';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard } from '@/components/dashboard/StatCard';
